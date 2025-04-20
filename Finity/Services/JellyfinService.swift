@@ -73,20 +73,22 @@ class JellyfinService: ObservableObject {
             print("Error: Missing credentials to save.")
             return
         }
-        let credentials = UserCredentials(serverURL: serverURL, userID: userID, accessToken: accessToken)
         
-        do {
-            // Use "currentUserSession" as a fixed document ID
-            try db.collection("userSessions").document("currentUserSession").setData(from: credentials) { error in
-                 if let error = error {
-                     print("Error saving credentials to Firestore: \(error.localizedDescription)")
-                     // Optionally set an error message for the user
-                 } else {
-                     print("Credentials successfully saved to Firestore.")
-                 }
+        // Create a dictionary instead of using Codable
+        let credentialsData: [String: Any] = [
+            "serverURL": serverURL,
+            "userID": userID,
+            "accessToken": accessToken
+        ]
+        
+        // Use setData with dictionary instead of setData(from:)
+        db.collection("userSessions").document("currentUserSession").setData(credentialsData) { error in
+            if let error = error {
+                print("Error saving credentials to Firestore: \(error.localizedDescription)")
+                // Optionally set an error message for the user
+            } else {
+                print("Credentials successfully saved to Firestore.")
             }
-        } catch let error {
-            print("Error encoding credentials for Firestore: \(error.localizedDescription)")
         }
     }
 
