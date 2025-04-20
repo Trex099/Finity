@@ -8,8 +8,9 @@ struct HomeView: View {
     // Local state mirroring the service's published data
     @State private var featuredItems: [MediaItem] = [] 
     @State private var continueWatchingItems: [MediaItem] = []
-    // Keep recentlyAddedItems for now, though fetching logic isn't implemented yet
-    @State private var recentlyAddedItems: [MediaItem] = [] 
+    @State private var recentlyAddedItems: [MediaItem] = []
+    @State private var movieItems: [MediaItem] = []
+    @State private var showItems: [MediaItem] = []
     
     @State private var selectedItemForNavigation: MediaItem? = nil
     @State private var showPlayer = false
@@ -43,7 +44,7 @@ struct HomeView: View {
                         .background(Color.black.edgesIgnoringSafeArea(.top))
                     
                     // Show loading indicator over the whole scroll view if loading initial data
-                    if jellyfinService.isLoadingData && featuredItems.isEmpty && continueWatchingItems.isEmpty {
+                    if jellyfinService.isLoadingData && featuredItems.isEmpty && continueWatchingItems.isEmpty && recentlyAddedItems.isEmpty && movieItems.isEmpty && showItems.isEmpty {
                          Spacer()
                          ProgressView().scaleEffect(1.5)
                          Spacer()
@@ -136,18 +137,43 @@ struct HomeView: View {
                     .padding(.bottom, 20)
                 }
                 
-                // --- Recently Added Section (Placeholder/Future) ---
+                // --- Recently Added Section --- 
                 if !recentlyAddedItems.isEmpty {
                     Text("Recently Added")
                         .font(.title2).bold()
                         .foregroundColor(.white)
                         .padding(.horizontal)
+                        .padding(.top, 20) // Add top spacing
                     
-                    // MediaRowView uses NavigationLink, which requires the NavStack we added back
                     let row = MediaRow(title: "", items: recentlyAddedItems)
                     MediaRowView(row: row)
                          .accessibility(identifier: "media_row_recently_added")
-                         .padding(.bottom, 20)
+                }
+                
+                // --- Movies Section --- 
+                if !movieItems.isEmpty {
+                    Text("Movies")
+                        .font(.title2).bold()
+                        .foregroundColor(.white)
+                        .padding(.horizontal)
+                        .padding(.top, 20) // Add top spacing
+                    
+                    let row = MediaRow(title: "", items: movieItems)
+                    MediaRowView(row: row)
+                         .accessibility(identifier: "media_row_movies")
+                }
+                
+                // --- TV Shows Section --- 
+                if !showItems.isEmpty {
+                    Text("TV Shows")
+                        .font(.title2).bold()
+                        .foregroundColor(.white)
+                        .padding(.horizontal)
+                        .padding(.top, 20) // Add top spacing
+                    
+                    let row = MediaRow(title: "", items: showItems)
+                    MediaRowView(row: row)
+                         .accessibility(identifier: "media_row_shows")
                 }
                 
                 // Use a fixed spacer or pass geometry size if needed
@@ -171,26 +197,31 @@ struct HomeView: View {
             .sink { items in self.continueWatchingItems = items }
             .store(in: &cancellables)
             
-        // TODO: Subscribe to recently added if implemented in service
-        
-        // Load data if needed (e.g., if lists are empty)
+        // Subscribe to new publishers
+        jellyfinService.$recentlyAddedItems
+            .receive(on: DispatchQueue.main)
+            .sink { items in self.recentlyAddedItems = items }
+            .store(in: &cancellables)
+            
+        jellyfinService.$movieItems
+            .receive(on: DispatchQueue.main)
+            .sink { items in self.movieItems = items }
+            .store(in: &cancellables)
+            
+        jellyfinService.$showItems
+            .receive(on: DispatchQueue.main)
+            .sink { items in self.showItems = items }
+            .store(in: &cancellables)
+            
+        // Load data if featuredItems is empty (or adapt logic as needed)
         if featuredItems.isEmpty { loadData() }
     }
     
     // Function to trigger data loading in the service
     private func loadData() {
-        print("HomeView: Requesting data from JellyfinService...")
-        jellyfinService.fetchLatestMedia(limit: 6) // Fetch 6 for banner
-        jellyfinService.fetchContinueWatching()
-        // TODO: Call fetchRecentlyAdded if implemented
-        
-        // Remove the old simulation logic
-        /*
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            // ... old simulated data ...
-            print("Simulated data loaded.")
-        }
-        */
+        print("HomeView: Requesting initial home data from JellyfinService...")
+        // Call the consolidated fetch function in the service
+        jellyfinService.fetchInitialHomeData()
     }
 }
 
