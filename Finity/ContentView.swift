@@ -11,6 +11,7 @@ struct ContentView: View {
     var body: some View {
         HomeView()
             .preferredColorScheme(.dark)
+            .ignoresSafeArea(.keyboard) // Prevent keyboard from causing layout issues
     }
 }
 

@@ -15,139 +15,160 @@ struct MediaPlayerView: View {
     @State private var controlsTimer: Timer? = nil
     
     var body: some View {
-        ZStack {
-            // Video player
-            VideoPlayer(player: player)
-                .edgesIgnoringSafeArea(.all)
-                .onTapGesture {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showControls.toggle()
-                    }
-                    resetControlsTimer()
-                }
-            
-            // Floating controls overlay
-            if showControls {
-                // Top bar with back button and title
-                VStack {
-                    HStack {
-                        Button(action: {
-                            presentationMode.wrappedValue.dismiss()
-                        }) {
-                            Image(systemName: "chevron.left")
-                                .font(.title2)
-                                .foregroundColor(.white)
-                                .padding()
-                                .background(Color.black.opacity(0.4))
-                                .clipShape(Circle())
+        GeometryReader { geometry in
+            ZStack {
+                // Video player
+                VideoPlayer(player: player)
+                    .edgesIgnoringSafeArea(.all)
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showControls.toggle()
                         }
-                        
-                        Spacer()
-                        
-                        Text(item.title)
-                            .font(.headline)
-                            .foregroundColor(.white)
-                        
-                        Spacer()
-                        
-                        Button(action: {}) {
-                            Image(systemName: "ellipsis")
-                                .font(.title2)
-                                .foregroundColor(.white)
-                                .padding()
-                                .background(Color.black.opacity(0.4))
-                                .clipShape(Circle())
-                        }
+                        resetControlsTimer()
                     }
-                    .padding()
-                    .background(
-                        LinearGradient(
-                            gradient: Gradient(colors: [.black.opacity(0.7), .clear]),
-                            startPoint: .top,
-                            endPoint: .bottom
+                
+                // Floating controls overlay
+                if showControls {
+                    // Top bar with back button and title
+                    VStack {
+                        HStack {
+                            Button(action: {
+                                presentationMode.wrappedValue.dismiss()
+                            }) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.white)
+                                    .frame(width: 44, height: 44)
+                                    .background(Color.black.opacity(0.4))
+                                    .clipShape(Circle())
+                            }
+                            .accessibility(identifier: "back_button")
+                            
+                            Spacer()
+                            
+                            Text(item.title)
+                                .font(.system(size: min(18, geometry.size.width * 0.045)))
+                                .foregroundColor(.white)
+                                .lineLimit(1)
+                            
+                            Spacer()
+                            
+                            Button(action: {}) {
+                                Image(systemName: "ellipsis")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.white)
+                                    .frame(width: 44, height: 44)
+                                    .background(Color.black.opacity(0.4))
+                                    .clipShape(Circle())
+                            }
+                            .accessibility(identifier: "options_button")
+                        }
+                        .padding(.horizontal, min(16, geometry.size.width * 0.04))
+                        .padding(.top, geometry.safeAreaInsets.top)
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [.black.opacity(0.7), .clear]),
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
                         )
-                    )
-                    
-                    Spacer()
-                    
-                    // Bottom controls
-                    VStack(spacing: 20) {
-                        // Progress bar
-                        Slider(value: $progress, in: 0...duration) { editing in
-                            if !editing {
-                                player.seek(to: CMTime(seconds: progress, preferredTimescale: 600))
-                            }
-                        }
-                        .accentColor(.white)
                         
-                        // Time indicators and control buttons
-                        HStack {
-                            // Current time
-                            Text(formatTime(progress))
-                                .font(.caption)
-                                .foregroundColor(.white)
-                            
-                            Spacer()
-                            
-                            // Control buttons
-                            HStack(spacing: 40) {
-                                Button(action: {
-                                    seekBackward()
-                                }) {
-                                    Image(systemName: "backward.fill")
-                                        .font(.title)
-                                        .foregroundColor(.white)
-                                }
-                                
-                                Button(action: {
-                                    togglePlayPause()
-                                }) {
-                                    Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                                        .font(.system(size: 56))
-                                        .foregroundColor(.white)
-                                }
-                                
-                                Button(action: {
-                                    seekForward()
-                                }) {
-                                    Image(systemName: "forward.fill")
-                                        .font(.title)
-                                        .foregroundColor(.white)
-                                }
-                            }
-                            
-                            Spacer()
-                            
-                            // Total time
-                            Text(formatTime(duration))
-                                .font(.caption)
-                                .foregroundColor(.white)
-                        }
+                        Spacer()
                         
-                        // Volume control
-                        HStack {
-                            Image(systemName: "speaker.fill")
-                                .foregroundColor(.white)
-                            
-                            Slider(value: $volume, in: 0...1) { _ in
-                                player.volume = Float(volume)
+                        // Bottom controls
+                        VStack(spacing: 20) {
+                            // Progress bar
+                            Slider(value: $progress, in: 0...duration) { editing in
+                                if !editing {
+                                    player.seek(to: CMTime(seconds: progress, preferredTimescale: 600))
+                                }
                             }
                             .accentColor(.white)
+                            .frame(height: 44) // Ensure minimum touch target
+                            .accessibility(identifier: "progress_slider")
                             
-                            Image(systemName: "speaker.wave.3.fill")
-                                .foregroundColor(.white)
+                            // Time indicators and control buttons
+                            HStack {
+                                // Current time
+                                Text(formatTime(progress))
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.white)
+                                
+                                Spacer()
+                                
+                                // Control buttons
+                                HStack(spacing: min(40, geometry.size.width * 0.08)) {
+                                    Button(action: {
+                                        seekBackward()
+                                    }) {
+                                        Image(systemName: "backward.fill")
+                                            .font(.system(size: 20))
+                                            .foregroundColor(.white)
+                                            .frame(width: 44, height: 44)
+                                    }
+                                    .accessibility(identifier: "backward_button")
+                                    
+                                    Button(action: {
+                                        togglePlayPause()
+                                    }) {
+                                        Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                                            .font(.system(size: min(56, geometry.size.width * 0.12)))
+                                            .foregroundColor(.white)
+                                            .frame(width: 60, height: 60)
+                                    }
+                                    .accessibility(identifier: "play_pause_button")
+                                    
+                                    Button(action: {
+                                        seekForward()
+                                    }) {
+                                        Image(systemName: "forward.fill")
+                                            .font(.system(size: 20))
+                                            .foregroundColor(.white)
+                                            .frame(width: 44, height: 44)
+                                    }
+                                    .accessibility(identifier: "forward_button")
+                                }
+                                
+                                Spacer()
+                                
+                                // Total time
+                                Text(formatTime(duration))
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.white)
+                            }
+                            
+                            // Volume control
+                            if geometry.size.height > 600 { // Only show volume control on taller screens
+                                HStack {
+                                    Image(systemName: "speaker.fill")
+                                        .foregroundColor(.white)
+                                        .frame(width: 24, height: 24)
+                                    
+                                    Slider(value: $volume, in: 0...1) { _ in
+                                        player.volume = Float(volume)
+                                    }
+                                    .accentColor(.white)
+                                    .frame(height: 44) // Ensure minimum touch target
+                                    .accessibility(identifier: "volume_slider")
+                                    
+                                    Image(systemName: "speaker.wave.3.fill")
+                                        .foregroundColor(.white)
+                                        .frame(width: 24, height: 24)
+                                }
+                            }
                         }
-                    }
-                    .padding()
-                    .background(
-                        LinearGradient(
-                            gradient: Gradient(colors: [.clear, .black.opacity(0.7)]),
-                            startPoint: .top,
-                            endPoint: .bottom
+                        .padding(.horizontal, min(16, geometry.size.width * 0.04))
+                        .padding(.bottom, geometry.safeAreaInsets.bottom + 16)
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [.clear, .black.opacity(0.7)]),
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
                         )
-                    )
+                    }
+                    .transition(.opacity)
                 }
-                .transition(.opacity)
             }
         }
         .statusBar(hidden: true)
@@ -239,15 +260,30 @@ struct MediaPlayerView: View {
 
 struct MediaPlayerView_Previews: PreviewProvider {
     static var previews: some View {
-        MediaPlayerView(item: MediaItem(
-            id: "1",
-            title: "Inception",
-            posterPath: "inception",
-            type: .movie,
-            year: "2010",
-            rating: 8.8,
-            overview: "A thief who steals corporate secrets through dream-sharing technology."
-        ))
-        .preferredColorScheme(.dark)
+        Group {
+            MediaPlayerView(item: MediaItem(
+                id: "1",
+                title: "Inception",
+                posterPath: "inception",
+                type: .movie,
+                year: "2010",
+                rating: 8.8,
+                overview: "A thief who steals corporate secrets through dream-sharing technology."
+            ))
+            .preferredColorScheme(.dark)
+            .previewDevice("iPhone 13 Pro")
+            
+            MediaPlayerView(item: MediaItem(
+                id: "1",
+                title: "Inception",
+                posterPath: "inception",
+                type: .movie,
+                year: "2010",
+                rating: 8.8,
+                overview: "A thief who steals corporate secrets through dream-sharing technology."
+            ))
+            .preferredColorScheme(.dark)
+            .previewDevice("iPhone SE (3rd generation)")
+        }
     }
 } 
