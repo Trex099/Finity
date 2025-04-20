@@ -187,6 +187,33 @@ class JellyfinService: ObservableObject {
              .store(in: &cancellables)
      }
 
+    // MARK: - User Actions (Mark Favorite/Watched etc.)
+    
+    func toggleFavorite(itemId: String, currentStatus: Bool) {
+        guard let request = buildAuthenticatedRequest(endpoint: "/Users/\(userID!)/FavoriteItems/\(itemId)", method: currentStatus ? "DELETE" : "POST") else { return }
+        
+        // We don't expect a meaningful body back, just check status code
+        URLSession.shared.dataTaskPublisher(for: request)
+            .tryMap(handleHTTPResponse) // Checks for 2xx status
+            .receive(on: DispatchQueue.main)
+            .sink(receiveCompletion: { [weak self] completion in
+                 if case .failure(let error) = completion { self?.handleAPIError(error, context: "Toggle Favorite (\(itemId))") }
+                 else { 
+                     print("Successfully toggled favorite status for \(itemId) to \(!currentStatus)")
+                     // Optionally: Re-fetch item details or update local state if needed for immediate UI feedback
+                     // self?.fetchItemDetails(itemID: itemId) // Might be too slow
+                     // Or update the `currentItemDetails` directly if it matches itemId
+                      if self?.currentItemDetails?.id == itemId {
+                           self?.currentItemDetails?.userData?.isFavorite = !currentStatus // Note: Modifying nested state directly needs care
+                      }
+                     // TODO: Update the item in latestItems/continueWatchingItems if it exists there too
+                 }
+             }, receiveValue: { _ in /* No body expected */ })
+            .store(in: &cancellables)
+    }
+    
+    // TODO: Add methods for marking watched/unwatched, updating progress etc.
+
     // MARK: - Playback
     
     func getVideoStreamURL(itemId: String) -> URL? {

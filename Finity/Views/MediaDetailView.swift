@@ -110,7 +110,19 @@ struct MediaDetailView: View {
                                      .cornerRadius(4)
                             }
                             
-                            Button(action: { /* TODO: Add/Remove Favorite Action */ }) {
+                            Button(action: {
+                                 // Call the service to toggle favorite status
+                                 if let currentStatus = item.userData?.isFavorite {
+                                     jellyfinService.toggleFavorite(itemId: item.id, currentStatus: currentStatus)
+                                     // Optimistically update local state for immediate feedback
+                                     // This might get reverted if the API call fails, but feels snappier.
+                                     // Need to make UserData mutable for this or handle state differently.
+                                     // For now, we rely on the service potentially updating currentItemDetails.
+                                 } else {
+                                      // If status is unknown (nil), assume we want to add it
+                                      jellyfinService.toggleFavorite(itemId: item.id, currentStatus: false)
+                                 }
+                             }) {
                                  Label(item.userData?.isFavorite ?? false ? "Favorited" : "Add to List", systemImage: item.userData?.isFavorite ?? false ? "checkmark" : "plus")
                                      .font(.headline)
                                      .foregroundColor(.white)
