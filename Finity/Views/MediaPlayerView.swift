@@ -1,296 +1,294 @@
 import SwiftUI
 import AVKit
+import Combine
 
+// Main View holding the player and custom controls
 struct MediaPlayerView: View {
     let item: MediaItem
-    @State private var player = AVPlayer()
+    @EnvironmentObject var jellyfinService: JellyfinService
+    @Environment(\.dismiss) var dismiss
+    
+    // Player state
+    @State private var player: AVPlayer? = nil
     @State private var isPlaying = false
     @State private var showControls = true
-    @State private var progress: Double = 0.0
-    @State private var duration: Double = 1.0
-    @State private var volume: Double = 0.8
-    @Environment(\.presentationMode) var presentationMode
-    
-    // Timer for hiding controls
     @State private var controlsTimer: Timer? = nil
+    @State private var currentTime: Double = 0
+    @State private var totalDuration: Double = 0
+    @State private var timeObserverToken: Any? = nil
+    @State private var isSeeking = false
     
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // Video player
-                VideoPlayer(player: player)
+        ZStack {
+            // Background
+            Color.black.edgesIgnoringSafeArea(.all)
+            
+            // Video Player Representable
+            if let player = player {
+                VideoPlayerViewControllerRepresentable(player: player)
                     .edgesIgnoringSafeArea(.all)
                     .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            showControls.toggle()
-                        }
-                        resetControlsTimer()
+                        toggleControlsVisibility()
                     }
-                
-                // Floating controls overlay
-                if showControls {
-                    // Top bar with back button and title
-                    VStack {
-                        HStack {
-                            Button(action: {
-                                presentationMode.wrappedValue.dismiss()
-                            }) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.white)
-                                    .frame(width: 44, height: 44)
-                                    .background(Color.black.opacity(0.4))
-                                    .clipShape(Circle())
-                            }
-                            .accessibility(identifier: "back_button")
-                            
-                            Spacer()
-                            
-                            Text(item.title)
-                                .font(.system(size: min(18, geometry.size.width * 0.045)))
-                                .foregroundColor(.white)
-                                .lineLimit(1)
-                            
-                            Spacer()
-                            
-                            Button(action: {}) {
-                                Image(systemName: "ellipsis")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.white)
-                                    .frame(width: 44, height: 44)
-                                    .background(Color.black.opacity(0.4))
-                                    .clipShape(Circle())
-                            }
-                            .accessibility(identifier: "options_button")
-                        }
-                        .padding(.horizontal, min(16, geometry.size.width * 0.04))
-                        .padding(.top, geometry.safeAreaInsets.top)
-                        .background(
-                            LinearGradient(
-                                gradient: Gradient(colors: [.black.opacity(0.7), .clear]),
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        
-                        Spacer()
-                        
-                        // Bottom controls
-                        VStack(spacing: 20) {
-                            // Progress bar
-                            Slider(value: $progress, in: 0...duration) { editing in
-                                if !editing {
-                                    player.seek(to: CMTime(seconds: progress, preferredTimescale: 600))
-                                }
-                            }
-                            .accentColor(.white)
-                            .frame(height: 44) // Ensure minimum touch target
-                            .accessibility(identifier: "progress_slider")
-                            
-                            // Time indicators and control buttons
-                            HStack {
-                                // Current time
-                                Text(formatTime(progress))
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.white)
-                                
-                                Spacer()
-                                
-                                // Control buttons
-                                HStack(spacing: min(40, geometry.size.width * 0.08)) {
-                                    Button(action: {
-                                        seekBackward()
-                                    }) {
-                                        Image(systemName: "backward.fill")
-                                            .font(.system(size: 20))
-                                            .foregroundColor(.white)
-                                            .frame(width: 44, height: 44)
-                                    }
-                                    .accessibility(identifier: "backward_button")
-                                    
-                                    Button(action: {
-                                        togglePlayPause()
-                                    }) {
-                                        Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                                            .font(.system(size: min(56, geometry.size.width * 0.12)))
-                                            .foregroundColor(.white)
-                                            .frame(width: 60, height: 60)
-                                    }
-                                    .accessibility(identifier: "play_pause_button")
-                                    
-                                    Button(action: {
-                                        seekForward()
-                                    }) {
-                                        Image(systemName: "forward.fill")
-                                            .font(.system(size: 20))
-                                            .foregroundColor(.white)
-                                            .frame(width: 44, height: 44)
-                                    }
-                                    .accessibility(identifier: "forward_button")
-                                }
-                                
-                                Spacer()
-                                
-                                // Total time
-                                Text(formatTime(duration))
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.white)
-                            }
-                            
-                            // Volume control
-                            if geometry.size.height > 600 { // Only show volume control on taller screens
-                                HStack {
-                                    Image(systemName: "speaker.fill")
-                                        .foregroundColor(.white)
-                                        .frame(width: 24, height: 24)
-                                    
-                                    Slider(value: $volume, in: 0...1) { _ in
-                                        player.volume = Float(volume)
-                                    }
-                                    .accentColor(.white)
-                                    .frame(height: 44) // Ensure minimum touch target
-                                    .accessibility(identifier: "volume_slider")
-                                    
-                                    Image(systemName: "speaker.wave.3.fill")
-                                        .foregroundColor(.white)
-                                        .frame(width: 24, height: 24)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, min(16, geometry.size.width * 0.04))
-                        .padding(.bottom, geometry.safeAreaInsets.bottom + 16)
-                        .background(
-                            LinearGradient(
-                                gradient: Gradient(colors: [.clear, .black.opacity(0.7)]),
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                    }
-                    .transition(.opacity)
-                }
+            } else {
+                // Loading indicator or error message
+                ProgressView()
+                    .scaleEffect(2)
+                    .onAppear(perform: setupPlayer) // Setup player when placeholder appears
+            }
+            
+            // Custom Controls Overlay
+            if showControls && player != nil {
+                CustomPlayerControlsView(
+                    itemTitle: item.title,
+                    isPlaying: $isPlaying,
+                    currentTime: $currentTime,
+                    totalDuration: $totalDuration,
+                    isSeeking: $isSeeking,
+                    onPlayPause: togglePlayPause,
+                    onSeek: seek(to:),
+                    onClose: { dismiss() }
+                )
+                .transition(.opacity.animation(.easeInOut(duration: 0.3)))
             }
         }
         .statusBar(hidden: true)
-        .onAppear {
-            setupPlayer()
-            startControlsTimer()
-        }
-        .onDisappear {
-            player.pause()
-            controlsTimer?.invalidate()
-        }
+        .onDisappear(perform: cleanupPlayer)
+        // Listen for player status changes if needed
+        // .onReceive(player.publisher(for: \\.status)) { status in ... }
     }
     
-    // Helper functions
+    // MARK: - Player Setup & Cleanup
+    
     private func setupPlayer() {
-        // In a real app, you would use the actual video URL from Jellyfin
-        guard let url = URL(string: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4") else { return }
-        let playerItem = AVPlayerItem(url: url)
-        player.replaceCurrentItem(with: playerItem)
+        guard let url = jellyfinService.getVideoStreamURL(itemId: item.id) else {
+            print("Error: Could not get video stream URL for \(item.id)")
+            // TODO: Show error state to user
+            return
+        }
+        print("Setting up player with URL: \(url)")
+        let avPlayer = AVPlayer(url: url)
+        self.player = avPlayer
         
-        // Get duration using the modern API
-        Task {
-            do {
-                let durationCMTime = try await playerItem.asset.load(.duration)
-                duration = CMTimeGetSeconds(durationCMTime)
-            } catch {
-                print("Failed to load duration: \(error)")
-                duration = 0
+        // Add observer for time updates
+        let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        timeObserverToken = avPlayer.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak avPlayer] time in
+            guard let currentItem = avPlayer?.currentItem else { return }
+            if !isSeeking { // Only update time if user is not actively scrubbing
+                currentTime = time.seconds
+            }
+            if totalDuration.isNaN || totalDuration <= 0, currentItem.duration.seconds > 0 {
+                totalDuration = currentItem.duration.seconds
             }
         }
         
-        // Set up time observer
-        player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.5, preferredTimescale: 600), queue: DispatchQueue.main) { time in
-            progress = CMTimeGetSeconds(time)
-        }
-        
-        // Set volume
-        player.volume = Float(volume)
-        
-        // Auto-play
-        player.play()
+        // Start playback automatically
+        avPlayer.play()
         isPlaying = true
+        scheduleControlsTimer()
+    }
+    
+    private func cleanupPlayer() {
+        player?.pause()
+        if let observer = timeObserverToken {
+            player?.removeTimeObserver(observer)
+            timeObserverToken = nil
+        }
+        controlsTimer?.invalidate()
+        controlsTimer = nil
+        player = nil
+        print("MediaPlayerView disappeared, player cleaned up.")
+    }
+    
+    // MARK: - Controls Logic
+    
+    private func toggleControlsVisibility() {
+        withAnimation {
+            showControls.toggle()
+        }
+        if showControls {
+            scheduleControlsTimer() // Reschedule timer when controls are shown
+        } else {
+            controlsTimer?.invalidate() // Invalidate timer when controls are hidden manually
+        }
+    }
+    
+    private func scheduleControlsTimer() {
+        controlsTimer?.invalidate() // Invalidate existing timer
+        // Hide controls after 4 seconds if playing
+        if isPlaying {
+            controlsTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: false) { _ in
+                if isPlaying { // Only hide if still playing
+                    withAnimation {
+                        showControls = false
+                    }
+                }
+            }
+        }
     }
     
     private func togglePlayPause() {
-        isPlaying.toggle()
+        guard let player = player else { return }
         if isPlaying {
-            player.play()
-        } else {
             player.pause()
+            controlsTimer?.invalidate() // Keep controls visible when paused
+        } else {
+            player.play()
+            scheduleControlsTimer() // Start timer when playing
         }
-        resetControlsTimer()
+        isPlaying.toggle()
     }
     
-    private func seekForward() {
-        let newTime = min(progress + 10, duration)
-        progress = newTime
-        player.seek(to: CMTime(seconds: newTime, preferredTimescale: 600))
-        resetControlsTimer()
+    private func seek(to time: Double) {
+        guard let player = player else { return }
+        let targetTime = CMTime(seconds: time, preferredTimescale: 600) // High precision timescale
+        player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] finished in
+            self?.isSeeking = false // Re-enable time updates after seek finishes
+            if finished {
+                // Optionally resume playback if it was playing before seek started
+                if self?.isPlaying ?? false {
+                    self?.player?.play()
+                }
+            }
+            // Keep controls visible after seeking
+            self?.showControls = true
+            self?.scheduleControlsTimer()
+        }
+    }
+}
+
+// MARK: - UIViewControllerRepresentable for AVPlayerViewController
+
+struct VideoPlayerViewControllerRepresentable: UIViewControllerRepresentable {
+    var player: AVPlayer
+
+    func makeUIViewController(context: Context) -> AVPlayerViewController {
+        let controller = AVPlayerViewController()
+        controller.player = player
+        controller.showsPlaybackControls = false // Hide default controls
+        controller.videoGravity = .resizeAspect // Or .resizeAspectFill
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
+        // Update the player if it changes (though less common with @State in parent)
+        if uiViewController.player !== player {
+            uiViewController.player = player
+        }
+    }
+}
+
+// MARK: - Custom Player Controls View
+
+struct CustomPlayerControlsView: View {
+    let itemTitle: String
+    @Binding var isPlaying: Bool
+    @Binding var currentTime: Double
+    @Binding var totalDuration: Double
+    @Binding var isSeeking: Bool
+    
+    var onPlayPause: () -> Void
+    var onSeek: (Double) -> Void // Called when scrubbing finishes
+    var onClose: () -> Void
+    
+    var body: some View {
+        ZStack {
+            // Dimmed Background for controls
+            Color.black.opacity(0.4)
+                .edgesIgnoringSafeArea(.all)
+
+            VStack {
+                // Top Bar (Close Button, Title)
+                HStack {
+                    Text(itemTitle)
+                        .foregroundColor(.white)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Spacer()
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                            .padding(10)
+                    }
+                }
+                .padding(.horizontal)
+                
+                Spacer() // Push controls to center and bottom
+                
+                // Middle Controls (Play/Pause)
+                HStack {
+                    // Placeholder for Rewind 10s (Future)
+                    Spacer()
+                    
+                    Button(action: onPlayPause) {
+                        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 50))
+                            .foregroundColor(.white)
+                    }
+                    
+                    Spacer()
+                    // Placeholder for Forward 10s (Future)
+                }
+                .padding(.bottom, 30) // Space above slider
+
+                Spacer()
+
+                // Bottom Bar (Slider, Time)
+                VStack(spacing: 5) {
+                    HStack {
+                        Text(formatTime(currentTime))
+                        Spacer()
+                        Text(formatTime(totalDuration))
+                    }
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.8))
+                    
+                    Slider(value: $currentTime, in: 0...max(totalDuration, 1), onEditingChanged: sliderEditingChanged)
+                        .accentColor(.red) // Netflix red
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 20) // Padding from bottom edge
+            }
+            .padding(.vertical)
+        }
     }
     
-    private func seekBackward() {
-        let newTime = max(progress - 10, 0)
-        progress = newTime
-        player.seek(to: CMTime(seconds: newTime, preferredTimescale: 600))
-        resetControlsTimer()
+    private func sliderEditingChanged(editingStarted: Bool) {
+        isSeeking = editingStarted
+        if !editingStarted {
+            // User finished scrubbing, perform the actual seek
+            onSeek(currentTime)
+        }
     }
     
-    private func formatTime(_ timeInSeconds: Double) -> String {
-        let hours = Int(timeInSeconds) / 3600
-        let minutes = (Int(timeInSeconds) % 3600) / 60
-        let seconds = Int(timeInSeconds) % 60
+    // Helper to format time (e.g., 1:05:32 or 55:10)
+    private func formatTime(_ time: Double) -> String {
+        guard !time.isNaN, !time.isInfinite, time >= 0 else {
+            return "--:--"
+        }
+        
+        let totalSeconds = Int(time)
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
         
         if hours > 0 {
             return String(format: "%d:%02d:%02d", hours, minutes, seconds)
         } else {
-            return String(format: "%d:%02d", minutes, seconds)
+            return String(format: "%02d:%02d", minutes, seconds)
         }
-    }
-    
-    private func startControlsTimer() {
-        controlsTimer?.invalidate()
-        controlsTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: false) { _ in
-            withAnimation {
-                if isPlaying {
-                    showControls = false
-                }
-            }
-        }
-    }
-    
-    private func resetControlsTimer() {
-        startControlsTimer()
     }
 }
 
+// Preview Provider (requires adjustments)
+/*
 struct MediaPlayerView_Previews: PreviewProvider {
     static var previews: some View {
-        Group {
-            MediaPlayerView(item: MediaItem(
-                id: "1",
-                title: "Inception",
-                posterPath: "inception",
-                type: .movie,
-                year: "2010",
-                rating: 8.8,
-                overview: "A thief who steals corporate secrets through dream-sharing technology."
-            ))
-            .preferredColorScheme(.dark)
-            .previewDevice("iPhone 13 Pro")
-            
-            MediaPlayerView(item: MediaItem(
-                id: "1",
-                title: "Inception",
-                posterPath: "inception",
-                type: .movie,
-                year: "2010",
-                rating: 8.8,
-                overview: "A thief who steals corporate secrets through dream-sharing technology."
-            ))
-            .preferredColorScheme(.dark)
-            .previewDevice("iPhone SE (3rd generation)")
-        }
+        // Need a mock item and service
+        // let mockItem = MediaItem(...) 
+        // let mockService = JellyfinService()
+        // MediaPlayerView(item: mockItem).environmentObject(mockService)
     }
-} 
+}
+*/ 
