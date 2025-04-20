@@ -16,9 +16,12 @@ enum TabItem: String, CaseIterable {
 
 struct BottomTabBar: View {
     @Binding var selectedTab: TabItem
-    
+    let contentHeight: CGFloat = 50 // Height for icons/text area
+
     var body: some View {
         GeometryReader { geometry in
+            let totalHeight = contentHeight + geometry.safeAreaInsets.bottom
+            
             HStack(spacing: 0) {
                 ForEach(TabItem.allCases, id: \.self) { tab in
                     Button(action: {
@@ -36,16 +39,20 @@ struct BottomTabBar: View {
                                 .foregroundColor(selectedTab == tab ? .white : .gray)
                         }
                         .frame(width: geometry.size.width / CGFloat(TabItem.allCases.count))
-                        .frame(maxHeight: .infinity)
+                        // Set frame height for content area only
+                        .frame(height: contentHeight)
                     }
                     .accessibility(identifier: "tab_\(tab.rawValue)")
                 }
             }
-            .frame(width: geometry.size.width, height: 60 + geometry.safeAreaInsets.bottom)
-            .padding(.bottom, geometry.safeAreaInsets.bottom)
+            // Position the HStack and apply background to total height
+            .frame(width: geometry.size.width, height: totalHeight, alignment: .top) // Align content to top
+            .padding(.bottom, geometry.safeAreaInsets.bottom) // This padding is effectively handled by the frame height now, can be removed or kept for clarity
             .background(BlurView(style: .systemMaterialDark))
         }
-        .frame(height: 60)
+        // The GeometryReader itself should take the calculated total height
+        .frame(height: contentHeight + (UIApplication.shared.windows.first?.safeAreaInsets.bottom ?? 0)) // Approximate height for preview
+        .edgesIgnoringSafeArea(.bottom)
     }
 }
 
@@ -55,8 +62,7 @@ struct BottomTabBar_Previews: PreviewProvider {
             Spacer()
             BottomTabBar(selectedTab: .constant(.home))
         }
-        .background(Color.blue)
-        .edgesIgnoringSafeArea(.bottom)
+        .background(Color.blue) // Example background
         .preferredColorScheme(.dark)
     }
 }
