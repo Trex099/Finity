@@ -8,29 +8,34 @@
 import SwiftUI
 
 struct ContentView: View {
-    // TODO: Replace with a check against secure storage (e.g., Keychain)
-    // to see if authentication tokens exist and are valid.
-    @State private var isAuthenticated = false
+    // Receive the JellyfinService instance
+    @ObservedObject var jellyfinService: JellyfinService
+    
+    // No longer need local state for authentication
+    // @State private var isAuthenticated = false 
 
     var body: some View {
         Group {
-            if isAuthenticated {
+            // Use the service's published property
+            if jellyfinService.isAuthenticated {
+                // Pass the service down to the main navigation view if needed later
                 ContentNavigationView()
+                    .environmentObject(jellyfinService) // Optionally make it available via EnvironmentObject
             } else {
-                LoginView(onAuthenticated: {
-                    // This closure is called by LoginView upon successful login
-                    self.isAuthenticated = true
-                })
+                // Pass the service to the LoginView
+                LoginView(jellyfinService: jellyfinService)
             }
         }
         .preferredColorScheme(.dark)
         .ignoresSafeArea(.keyboard) // Prevent keyboard from causing layout issues
         // Add a transition for a smoother switch between login and main view
         .transition(.opacity)
-        .animation(.easeInOut, value: isAuthenticated)
+        // Animate based on the service's state
+        .animation(.easeInOut, value: jellyfinService.isAuthenticated)
     }
 }
 
 #Preview {
-    ContentView()
+    // Provide a mock service for the preview
+    ContentView(jellyfinService: JellyfinService())
 }
