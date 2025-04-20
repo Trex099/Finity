@@ -61,62 +61,165 @@ struct MediaPlayerView: View {
     // MARK: - Player Setup & Cleanup
     
     private func setupPlayer() async {
-        guard let url = jellyfinService.getVideoStreamURL(itemId: item.id) else {
-            print("Error: Could not get video stream URL for \(item.id)")
-            // TODO: Show error state to user
-            return
-        }
-        print("Setting up player with URL: \(url)")
-        let avPlayer = AVPlayer(url: url)
+        // Reset state in case of retry
+        player = nil
+        totalDuration = 0
+        currentTime = 0
+        isPlaying = false
         
-        // Assign player first
-        self.player = avPlayer
-        
-        // Listen for player item status changes (No [weak self])
-        NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: avPlayer.currentItem, queue: .main) { _ in
-            // Since MediaPlayerView is a struct, direct mutation is fine here.
-            isPlaying = false
-        }
-        
-        // Get total duration asynchronously
         do {
-            // Call load() on the player item's asset
-            guard let asset = avPlayer.currentItem?.asset else {
-                 print("Error: Could not get player item's asset to load duration.")
-                 throw URLError(.cannotDecodeContentData) // Or a custom error
+            print("Fetching PlaybackInfo for item: \(item.id)")
+            let playbackInfo = try await jellyfinService.fetchPlaybackInfo(itemId: item.id)
+            
+            // Choose the best media source
+            guard let selectedSource = chooseBestMediaSource(from: playbackInfo.mediaSources) else {
+                print("Error: No suitable media source found for playback.")
+                // TODO: Show error state to user (e.g., set an @State error message)
+                return
+            }
+            
+            // Construct the final URL
+            guard let url = constructPlaybackURL(from: selectedSource) else {
+                print("Error: Could not construct playback URL from selected source.")
+                // TODO: Show error state to user
+                return
+            }
+            
+            print("Setting up player with URL: \(url)")
+            let avPlayer = AVPlayer(url: url)
+            
+            // Assign player first
+            self.player = avPlayer
+            
+            // Add observers (same as before, but maybe only after player item is ready?)
+             addPlayerObservers(player: avPlayer)
+            
+            // Load duration (can be done after assigning player)
+            await loadPlayerDuration(player: avPlayer)
+            
+            // Start playback automatically
+            avPlayer.play()
+            isPlaying = true
+            scheduleControlsTimer()
+            print("Player setup complete, playback started.")
+            
+        } catch {
+            print("Error setting up player: \(error)")
+            // TODO: Show error state to user based on the caught error
+            // Example: Map URLError codes or Jellyfin API errors to user-friendly messages
+        }
+    }
+    
+    // Helper function to choose the best source
+    private func chooseBestMediaSource(from sources: [MediaSourceInfo]) -> MediaSourceInfo? {
+        // Simple Strategy: Prioritize HLS, then check DirectStream/DirectPlay compatibility
+        
+        // 1. Prioritize HLS
+        if let hlsSource = sources.first(where: { $0.protocol?.lowercased() == "hls" && $0.supportsDirectStream == true }) {
+            print("Choosing HLS source.")
+            return hlsSource
+        }
+        
+        // 2. Look for compatible DirectStream (basic check)
+        // TODO: Add more robust checks based on container/codecs if needed
+        if let directStreamSource = sources.first(where: { 
+            $0.supportsDirectStream == true && 
+            ($0.container?.lowercased() == "mp4" || $0.container?.lowercased() == "mov") // Common iOS compatible containers
+        }) {
+            print("Choosing DirectStream source (Container: \(directStreamSource.container ?? "N/A"))")
+            return directStreamSource
+        }
+        
+        // 3. Look for compatible DirectPlay (basic check)
+        if let directPlaySource = sources.first(where: { 
+            $0.supportsDirectPlay == true && 
+            ($0.container?.lowercased() == "mp4" || $0.container?.lowercased() == "mov") 
+        }) {
+            print("Choosing DirectPlay source (Container: \(directPlaySource.container ?? "N/A"))")
+            return directPlaySource
+        }
+        
+        // 4. Fallback: Maybe the first source if any exists?
+        // Or potentially a transcoding source if SupportsTranscoding is true?
+        // For now, return nil if no clear best choice found.
+        print("No preferred HLS/DirectStream/DirectPlay source found.")
+        return sources.first // Fallback to first source if absolutely necessary, might fail.
+    }
+    
+    // Helper function to construct the final URL
+    private func constructPlaybackURL(from source: MediaSourceInfo) -> URL? {
+        guard let path = source.path else { return nil }
+        
+        // Check if path is absolute or relative
+        if path.hasPrefix("http://") || path.hasPrefix("https://") {
+            // Assume it's absolute
+            return URL(string: path)
+        } else {
+            // Assume relative, prepend server URL
+            guard let serverURL = jellyfinService.serverURL else { return nil }
+            
+            // Combine server URL and path
+            let fullPath = serverURL + path
+            
+            // --- Authentication for HLS/Streaming --- 
+            // Jellyfin often requires the API key for manifests/segments
+            if source.protocol?.lowercased() == "hls" || source.isInfiniteStream == true {
+                guard let token = jellyfinService.accessToken else { 
+                     print("Warning: HLS/Infinite stream may need token, but token is missing.")
+                     return URL(string: fullPath) // Return basic URL, might fail
+                }
+                // Append api_key (check Jellyfin docs if this is correct format)
+                var components = URLComponents(string: fullPath)
+                var queryItems = components?.queryItems ?? []
+                queryItems.append(URLQueryItem(name: "api_key", value: token))
+                // Add DeviceId as well, sometimes required
+                queryItems.append(URLQueryItem(name: "deviceId", value: UIDevice.current.identifierForVendor?.uuidString ?? ""))
+                components?.queryItems = queryItems
+                print("Appending api_key/deviceId to HLS URL")
+                return components?.url
+            } else {
+                // For direct play/stream, often no extra token needed in URL if session is authenticated
+                return URL(string: fullPath)
+            }
+        }
+    }
+    
+    // Helper to load duration asynchronously
+    private func loadPlayerDuration(player: AVPlayer) async {
+         do {
+            guard let asset = player.currentItem?.asset else {
+                 print("Error: Could not get player item asset to load duration.")
+                 return
             }
             let duration = try await asset.load(.duration)
-            // Ensure duration is valid before setting
             if duration.seconds.isFinite && !duration.seconds.isNaN {
                  totalDuration = duration.seconds
                  print("Player duration loaded: \(totalDuration) seconds")
             } else {
                 print("Warning: Loaded duration is invalid: \(duration.seconds)")
-                totalDuration = 0 // Set a default or handle error
+                totalDuration = 0
             }
         } catch {
             print("Error loading player duration: \(error)")
-            totalDuration = 0 // Set a default or handle error
-            // TODO: Potentially show error state to user
+            totalDuration = 0 
         }
-        
-        // Setup time observer (No [weak self], self is implicitly captured)
-        let interval = CMTime(seconds: 1, preferredTimescale: 1)
-        timeObserverToken = avPlayer.addPeriodicTimeObserver(forInterval: interval, queue: .main) { time in
-            // Guard against mutations while seeking
-            guard !isSeeking else { return }
-            currentTime = time.seconds
-        }
-        
-        // Start playback automatically
-        // Ensure player setup (like duration loading) is somewhat complete before playing
-        // Although AVPlayer usually handles this gracefully.
-        avPlayer.play()
-        isPlaying = true
-        scheduleControlsTimer()
-        print("Player setup complete, playback started.")
     }
     
+    // Helper to add player observers
+    private func addPlayerObservers(player: AVPlayer) {
+         // Play End observer
+         NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: player.currentItem, queue: .main) { [weak self] _ in
+             self?.isPlaying = false
+         }
+         
+         // Time observer
+         let interval = CMTime(seconds: 1, preferredTimescale: 1)
+         timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
+             guard let self = self, !self.isSeeking else { return }
+             self.currentTime = time.seconds
+         }
+    }
+
     private func cleanupPlayer() {
         player?.pause()
         if let observer = timeObserverToken {
