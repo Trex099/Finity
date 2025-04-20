@@ -17,6 +17,9 @@ struct MediaPlayerView: View {
     @State private var totalDuration: Double = 0
     @State private var timeObserverToken: Any? = nil
     @State private var isSeeking = false
+    @State private var error: String? = nil
+    @State private var isLoading = false
+    @State private var currentItemId: String? = nil
     
     var body: some View {
         ZStack {
@@ -61,56 +64,65 @@ struct MediaPlayerView: View {
     // MARK: - Player Setup & Cleanup
     
     private func setupPlayer() async {
-        // Reset state in case of retry
-        player = nil
-        totalDuration = 0
-        currentTime = 0
-        isPlaying = false
+        guard item.id != nil else {
+            print("Error setting up player: Item has no ID")
+            self.error = "Error: Unable to play item (missing ID)"
+            return
+        }
         
-        do {
-            print("Fetching PlaybackInfo for item: \(item.id)")
-            let playbackInfo = try await jellyfinService.fetchPlaybackInfo(itemId: item.id)
-            
-            // Choose the best media source
-            var url: URL?
-            if let selectedSource = chooseBestMediaSource(from: playbackInfo.mediaSources) {
-                // Construct URL from the chosen source
-                url = constructPlaybackURL(from: selectedSource)
-            } else {
-                 // FALLBACK: No suitable direct source found, try constructing an HLS URL manually
-                 print("Fallback: Attempting to construct HLS URL manually.")
-                 url = constructManualHLSURL(itemId: item.id)
+        currentItemId = item.id
+        
+        // Show loading indicator
+        isLoading = true
+        
+        // Fetch playback info from Jellyfin
+        Task {
+            do {
+                // Get playback info
+                let itemId = item.id!
+                print("Fetching PlaybackInfo for item: \(itemId)")
+                
+                if let playbackInfoResponse = try await jellyfinService.getPlaybackInfo(for: itemId) {
+                    print("Successfully fetched PlaybackInfo with \(playbackInfoResponse.mediaSources?.count ?? 0) media sources.")
+                    
+                    // Choose the best media source
+                    if let bestSource = chooseBestMediaSource(from: playbackInfoResponse.mediaSources) {
+                        // Construct playback URL
+                        if let mediaUrl = self.constructPlaybackURL(source: bestSource, itemId: itemId) {
+                            print("Setting up player with URL: \(mediaUrl.absoluteString)")
+                            setupAVPlayer(with: mediaUrl)
+                            startPlaybackSession(itemId: itemId)
+                            return
+                        }
+                    } else {
+                        print("No preferred HLS/DirectStream/DirectPlay source found.")
+                        
+                        // Fallback: Attempt to construct HLS URL manually
+                        print("Fallback: Attempting to construct HLS URL manually.")
+                        if let manualHLSUrl = constructManualHLSURL(itemId: itemId) {
+                            print("Setting up player with URL: \(manualHLSUrl.absoluteString)")
+                            setupAVPlayer(with: manualHLSUrl)
+                            startPlaybackSession(itemId: itemId)
+                            return
+                        }
+                    }
+                    
+                    // If we get here, we couldn't find a valid URL
+                    self.error = "Error: No compatible playback source found"
+                    isLoading = false
+                } else {
+                    self.error = "Error: Could not get playback information"
+                    isLoading = false
+                }
+            } catch let error as JellyfinError {
+                print("Error setting up player: \(error.localizedDescription)")
+                self.error = "Error: \(error.localizedDescription)"
+                isLoading = false
+            } catch {
+                print("Error setting up player: \(error.localizedDescription)")
+                self.error = "Error: \(error.localizedDescription)"
+                isLoading = false
             }
-            
-            // Ensure we have a valid URL
-            guard let finalURL = url else {
-                 print("Error: Could not determine a valid playback URL.")
-                 // TODO: Show error state
-                 return
-            }
-            
-            print("Setting up player with URL: \(finalURL)")
-            let avPlayer = AVPlayer(url: finalURL)
-            
-            // Assign player first
-            self.player = avPlayer
-            
-            // Add observers (same as before, but maybe only after player item is ready?)
-             addPlayerObservers(player: avPlayer)
-            
-            // Load duration (can be done after assigning player)
-            await loadPlayerDuration(player: avPlayer)
-            
-            // Start playback automatically
-            avPlayer.play()
-            isPlaying = true
-            scheduleControlsTimer()
-            print("Player setup complete, playback started.")
-            
-        } catch {
-            print("Error setting up player: \(error)")
-            // TODO: Show error state to user based on the caught error
-            // Example: Map URLError codes or Jellyfin API errors to user-friendly messages
         }
     }
     
@@ -159,7 +171,7 @@ struct MediaPlayerView: View {
     }
     
     // Helper function to construct the final URL
-    private func constructPlaybackURL(from source: MediaSourceInfo) -> URL? {
+    private func constructPlaybackURL(from source: MediaSourceInfo, itemId: String) -> URL? {
         guard let path = source.path else { 
             print("Error: MediaSourceInfo has no path.")
             return nil 
@@ -355,6 +367,16 @@ struct MediaPlayerView: View {
             showControls = true
             scheduleControlsTimer()
         }
+    }
+    
+    private func setupAVPlayer(with url: URL) {
+        player = AVPlayer(url: url)
+        addPlayerObservers(player: player!)
+        loadPlayerDuration(player: player!)
+    }
+    
+    private func startPlaybackSession(itemId: String) {
+        // Implementation of startPlaybackSession method
     }
 }
 

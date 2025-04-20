@@ -635,7 +635,7 @@ class JellyfinService: ObservableObject {
          return "MediaBrowser Client=\"\(appName)\", Device=\"iOS\", DeviceName=\"\(deviceName)\", Version=\"\(appVersion)\", Token=\"\(accessToken ?? "")\", DeviceId=\"\(deviceId)\""
      }
 
-    // Validate and sanitize server URL
+    // MARK: - URL Helpers
     func sanitizeServerURL(_ url: String) -> String {
         var sanitized = url.trimmingCharacters(in: .whitespacesAndNewlines)
         
@@ -654,13 +654,21 @@ class JellyfinService: ObservableObject {
 
     // MARK: - Authentication
     func loadCredentials() {
-        // ... existing code ...
+        print("JellyfinService Initializing - Loading credentials from Keychain...")
+        
+        // Get credentials from Keychain
+        let serverURLData = KeychainHelper.standard.read(service: "JellyfinService", account: "serverURL")
+        let usernameData = KeychainHelper.standard.read(service: "JellyfinService", account: "username")
+        let userIdData = KeychainHelper.standard.read(service: "JellyfinService", account: "userId")
+        let accessTokenData = KeychainHelper.standard.read(service: "JellyfinService", account: "accessToken")
         
         // If credentials exist, set them
         if let savedServerURL = serverURLData, let savedUsername = usernameData,
            let savedUserId = userIdData, let savedAccessToken = accessTokenData {
-            // Sanitize the server URL
-            let sanitizedURL = sanitizeServerURL(String(decoding: savedServerURL, as: UTF8.self))
+            
+            // Sanitize the server URL to ensure it has protocol and ends with slash
+            let rawURL = String(decoding: savedServerURL, as: UTF8.self)
+            let sanitizedURL = sanitizeServerURL(rawURL)
             
             self.serverURL = sanitizedURL
             self.username = String(decoding: savedUsername, as: UTF8.self)
@@ -673,15 +681,29 @@ class JellyfinService: ObservableObject {
         }
     }
     
-    // Update saveCredentials function
     func saveCredentials(serverURL: String, username: String, userId: String, accessToken: String) {
-        // Sanitize the server URL
+        // Sanitize the server URL to ensure it has protocol and ends with slash
         let sanitizedURL = sanitizeServerURL(serverURL)
         
-        // ... existing code ...
-        // When setting the keychain data, use the sanitized URL
-        let serverURLData = sanitizedURL.data(using: .utf8)
-        // ... rest of existing code ...
+        if let serverURLData = sanitizedURL.data(using: .utf8),
+           let usernameData = username.data(using: .utf8),
+           let userIdData = userId.data(using: .utf8),
+           let accessTokenData = accessToken.data(using: .utf8) {
+            
+            // Save to keychain
+            KeychainHelper.standard.save(serverURLData, service: "JellyfinService", account: "serverURL")
+            KeychainHelper.standard.save(usernameData, service: "JellyfinService", account: "username")
+            KeychainHelper.standard.save(userIdData, service: "JellyfinService", account: "userId")
+            KeychainHelper.standard.save(accessTokenData, service: "JellyfinService", account: "accessToken")
+            
+            // Set instance variables
+            self.serverURL = sanitizedURL
+            self.username = username
+            self.userId = userId
+            self.accessToken = accessToken
+            
+            print("Credentials saved to Keychain.")
+        }
     }
 
 } 
