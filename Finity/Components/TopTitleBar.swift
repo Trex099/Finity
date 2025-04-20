@@ -57,19 +57,6 @@ struct TopTitleBar: View {
     }
 }
 
-// Simple Blur View using UIVisualEffectView (Keep for Bottom Bar)
-struct BlurView: UIViewRepresentable {
-    var style: UIBlurEffect.Style
-
-    func makeUIView(context: Context) -> UIVisualEffectView {
-        return UIVisualEffectView(effect: UIBlurEffect(style: style))
-    }
-
-    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {
-        uiView.effect = UIBlurEffect(style: style)
-    }
-}
-
 struct TopTitleBar_Previews: PreviewProvider {
     static var previews: some View {
         VStack(spacing: 0) {
