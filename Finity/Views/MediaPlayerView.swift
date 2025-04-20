@@ -80,7 +80,12 @@ struct MediaPlayerView: View {
         
         // Get total duration asynchronously
         do {
-            let duration = try await avPlayer.load(.duration)
+            // Call load() on the player item's asset
+            guard let asset = avPlayer.currentItem?.asset else {
+                 print("Error: Could not get player item's asset to load duration.")
+                 throw URLError(.cannotDecodeContentData) // Or a custom error
+            }
+            let duration = try await asset.load(.duration)
             // Ensure duration is valid before setting
             if duration.seconds.isFinite && !duration.seconds.isNaN {
                  totalDuration = duration.seconds
