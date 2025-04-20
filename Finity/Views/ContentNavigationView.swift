@@ -29,13 +29,23 @@ struct ContentNavigationView: View {
         }
         .accentColor(.white) // Active tab color
         .onAppear {
-            // Set TabBar appearance to match iOS standard dark mode
-            UITabBar.appearance().barTintColor = .black
-            UITabBar.appearance().isTranslucent = true
-            UITabBar.appearance().backgroundColor = UIColor.black.withAlphaComponent(0.8)
+            // Configure tab bar to match iOS standard appearance
+            let appearance = UITabBarAppearance()
+            appearance.configureWithDefaultBackground()
+            appearance.backgroundColor = UIColor.black.withAlphaComponent(0.8)
             
-            // Set TabBar item colors
-            UITabBar.appearance().unselectedItemTintColor = UIColor.gray
+            // Set colors for the tab items
+            appearance.stackedLayoutAppearance.normal.iconColor = UIColor.gray
+            appearance.stackedLayoutAppearance.normal.titleTextAttributes = [NSAttributedString.Key.foregroundColor: UIColor.gray]
+            
+            appearance.stackedLayoutAppearance.selected.iconColor = UIColor.white
+            appearance.stackedLayoutAppearance.selected.titleTextAttributes = [NSAttributedString.Key.foregroundColor: UIColor.white]
+            
+            // Apply the appearance to the tab bar
+            UITabBar.appearance().standardAppearance = appearance
+            if #available(iOS 15.0, *) {
+                UITabBar.appearance().scrollEdgeAppearance = appearance
+            }
         }
         .sheet(isPresented: $showSearchView) { 
             SearchView()
