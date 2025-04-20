@@ -97,4 +97,83 @@ struct MediaRow: Identifiable {
     let id = UUID()
     let title: String
     let items: [MediaItem]
+}
+
+// MARK: - Playback Info Structures (from /PlaybackInfo endpoint)
+
+// Payload to send TO the server
+struct DeviceInfo: Codable {
+    let deviceName: String
+    let deviceId: String
+    let appName: String
+    let appVersion: String
+    // Add more fields as needed, e.g., SupportedCodecs, MaxStreamingBitrate
+    // For now, keep it simple
+    
+    enum CodingKeys: String, CodingKey {
+        case deviceName = "DeviceName"
+        case deviceId = "DeviceId"
+        case appName = "AppName"
+        case appVersion = "AppVersion"
+    }
+}
+
+// Response FROM the server
+struct PlaybackInfoResponse: Codable {
+    let mediaSources: [MediaSourceInfo]
+    let playSessionId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case mediaSources = "MediaSources"
+        case playSessionId = "PlaySessionId"
+    }
+}
+
+struct MediaSourceInfo: Codable, Identifiable {
+    let `protocol`: String? // e.g., "Http", "Hls"
+    let id: String? // Often the item ID, but can differ
+    let path: String? // The URL path (can be relative or absolute)
+    let type: String? // e.g., "Default", "Grouping"
+    let container: String? // e.g., "mkv", "mp4", "ts"
+    let size: Int64?
+    let name: String?
+    
+    let isRemote: Bool?
+    let runTimeTicks: Int64?
+    let supportsDirectPlay: Bool?
+    let supportsDirectStream: Bool?
+    let supportsTranscoding: Bool?
+    let isInfiniteStream: Bool?
+    let requiresOpening: Bool?
+    let requiresClosing: Bool?
+    let videoType: String? // e.g., "h264", "hevc"
+    let audioStreamIndex: Int?
+    let videoStreamIndex: Int?
+    let transcodeReasons: [String]? // Why transcoding might be needed
+    
+    // Simplified mapping for common fields
+    enum CodingKeys: String, CodingKey {
+        case `protocol` = "Protocol"
+        case id = "Id"
+        case path = "Path"
+        case type = "Type"
+        case container = "Container"
+        case size = "Size"
+        case name = "Name"
+        case isRemote = "IsRemote"
+        case runTimeTicks = "RunTimeTicks"
+        case supportsDirectPlay = "SupportsDirectPlay"
+        case supportsDirectStream = "SupportsDirectStream"
+        case supportsTranscoding = "SupportsTranscoding"
+        case isInfiniteStream = "IsInfiniteStream"
+        case requiresOpening = "RequiresOpening"
+        case requiresClosing = "RequiresClosing"
+        case videoType = "VideoType" // Correct based on typical Jellyfin API
+        case audioStreamIndex = "AudioStreamIndex"
+        case videoStreamIndex = "VideoStreamIndex"
+        case transcodeReasons = "TranscodeReasons"
+    }
+    
+    // Add Identifiable conformance if needed (using 'id' or generating one)
+     var identifiableId: String { id ?? UUID().uuidString }
 } 
