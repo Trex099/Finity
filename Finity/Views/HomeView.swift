@@ -29,13 +29,13 @@ struct HomeView: View {
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                // Top metallic title
-                TopTitleBar()
-                    .padding(.top, geometry.safeAreaInsets.top)
-                
-                // Scrollable content
+                // Scrollable content including the title bar
                 ScrollView {
                     VStack(spacing: 0) {
+                        // Top metallic title now inside scroll view
+                        TopTitleBar()
+                            .padding(.top, geometry.safeAreaInsets.top) // Add safe area padding here
+                        
                         // Featured content
                         if !tempMovies.isEmpty {
                             FeaturedContentView(item: tempMovies[0])
@@ -61,6 +61,7 @@ struct HomeView: View {
                         Spacer(minLength: geometry.safeAreaInsets.bottom + 70)
                     }
                 }
+                .edgesIgnoringSafeArea(.top) // Allow content to scroll under status bar
             }
             .background(Color.black)
             .fullScreenCover(isPresented: $showPlayer, content: {
