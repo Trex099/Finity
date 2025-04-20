@@ -1,8 +1,7 @@
 import Foundation
 import Combine
 import UIKit
-import FirebaseFirestore // Add Firestore
-import FirebaseFirestoreSwift // Add Swift extensions
+import FirebaseFirestore // Keep Firestore
 
 // Basic structure for Jellyfin Authentication Response
 struct AuthenticationResponse: Codable {
