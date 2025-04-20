@@ -153,32 +153,3 @@ struct MainContentNavigationView: View {
 class NavigationState: ObservableObject {
     @Published var showSearchView = false
 }
-
-// Need to define TabItem and BlurView here if ContentNavigationView.swift is deleted
-enum TabItem: String, CaseIterable {
-    case home = "Home"
-    case favorites = "Favorites"
-    case todo = "Todo" // Assuming TodoTabView exists
-    case settings = "Settings"
-    
-    var icon: String {
-        switch self {
-        case .home: return "house.fill"
-        case .favorites: return "heart.fill"
-        case .todo: return "checklist"
-        case .settings: return "gearshape.fill"
-        }
-    }
-}
-
-struct BlurView: UIViewRepresentable {
-    var style: UIBlurEffect.Style
-    
-    func makeUIView(context: Context) -> UIVisualEffectView {
-        return UIVisualEffectView(effect: UIBlurEffect(style: style))
-    }
-    
-    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {
-        uiView.effect = UIBlurEffect(style: style)
-    }
-}
