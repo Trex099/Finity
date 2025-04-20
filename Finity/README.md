@@ -8,6 +8,7 @@ A sleek, modern, and cinematic frontend for Jellyfin media server, inspired by A
 - Netflix-style horizontal scrolling rows for browsing content
 - Cinematic full-screen media player with floating controls
 - Smooth transitions and animations for a premium feel
+- Responsive design that adapts to all iPhone screen sizes
 
 ## Setup
 
@@ -47,6 +48,15 @@ To connect to your Jellyfin server:
 - The current implementation uses mock data for demonstration
 - For a full implementation, the `JellyfinService` would need to be expanded to make actual API calls to your Jellyfin server
 - Media playback currently uses a sample video URL - in a production app, this would be replaced with the actual streaming URL from Jellyfin
+- The UI is fully responsive and follows Apple's Human Interface Guidelines with proper sizing for all elements
+
+## Responsive Design
+
+- All UI components use GeometryReader to adapt to different screen sizes
+- Minimum touch target sizes of 44x44 points following Apple's guidelines
+- Dynamic text sizing that scales appropriately for different devices
+- Navigation tabs hide on smaller screens to conserve space
+- Volume controls conditionally appear based on available screen height
 
 ## Requirements
 
