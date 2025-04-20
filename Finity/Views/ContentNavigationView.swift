@@ -17,6 +17,9 @@ struct ContentNavigationView: View {
                     .tag(TabItem.favorites)
                     .environmentObject(jellyfinService)
                 
+                TodoTabView()
+                    .tag(TabItem.todo)
+                
                 SettingsView(showSearchView: $showSearchView)
                     .tag(TabItem.settings)
                     .environmentObject(jellyfinService)
