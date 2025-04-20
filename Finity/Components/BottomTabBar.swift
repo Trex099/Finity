@@ -3,6 +3,7 @@ import SwiftUI
 enum TabItem: String, CaseIterable {
     case home = "Home"
     case favorites = "Favorites"
+    case todo = "Todo"
     case settings = "Settings"
     
     var icon: String {
@@ -11,6 +12,8 @@ enum TabItem: String, CaseIterable {
             return "house.fill"
         case .favorites:
             return "heart.fill"
+        case .todo:
+            return "checklist"
         case .settings:
             return "gear"
         }
