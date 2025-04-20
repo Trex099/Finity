@@ -108,7 +108,6 @@ struct HomeView: View {
                         showPlayer = true // Trigger fullscreen player
                     }
                 )
-                .padding(.bottom, 20)
                 
                 // --- Continue Watching Section --- 
                 if !continueWatchingItems.isEmpty {

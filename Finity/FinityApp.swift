@@ -82,14 +82,108 @@ struct MainContentNavigationView: View {
      @EnvironmentObject var jellyfinService: JellyfinService
      @EnvironmentObject var navigationState: NavigationState // For managing search view state etc.
 
+     // Use the @State properties needed by the TabView logic
+     @State private var selectedTab: TabItem = .home
+     // showSearchView is now managed by the navigationState EnvironmentObject
+     // @State private var showSearchView = false 
+
      var body: some View {
-         // Replace with your actual TabView or main navigation structure
-         HomeView(showSearchView: $navigationState.showSearchView) // Pass binding
-             .environmentObject(jellyfinService) // Ensure service is passed down if needed further
+         // --- PASTE THE CONTENT FROM ContentNavigationView.swift HERE --- 
+        ZStack(alignment: .bottom) {
+            TabView(selection: $selectedTab) {
+                // Use navigationState.showSearchView for bindings
+                HomeView(showSearchView: $navigationState.showSearchView)
+                    .tag(TabItem.home)
+                    .environmentObject(jellyfinService)
+                
+                FavoritesView(showSearchView: $navigationState.showSearchView)
+                    .tag(TabItem.favorites)
+                    .environmentObject(jellyfinService)
+                
+                TodoTabView()
+                    .tag(TabItem.todo)
+                
+                SettingsView(showSearchView: $navigationState.showSearchView)
+                    .tag(TabItem.settings)
+                    .environmentObject(jellyfinService)
+            }
+            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+            // Keep the padding added earlier
+            .padding(.bottom, 60)
+            
+            // Custom bottom tab bar that matches iOS standard
+            HStack(spacing: 0) {
+                ForEach(TabItem.allCases, id: \.self) { tab in
+                    Button(action: {
+                        selectedTab = tab
+                    }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: tab.icon)
+                                .font(.system(size: 22))
+                                .foregroundColor(selectedTab == tab ? .white : .gray)
+                            
+                            Text(tab.rawValue)
+                                .font(.caption)
+                                .foregroundColor(selectedTab == tab ? .white : .gray)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                    }
+                }
+            }
+            .background(
+                ZStack {
+                    Color.black.opacity(0.8)
+                    BlurView(style: .systemMaterialDark)
+                }
+                .ignoresSafeArea(edges: .bottom)
+            )
+        }
+        // Use navigationState.showSearchView for the sheet presentation
+        .sheet(isPresented: $navigationState.showSearchView) { 
+            SearchView()
+                .preferredColorScheme(.dark)
+                .environmentObject(jellyfinService)
+        }
+         // --- END OF PASTED CONTENT --- 
      }
 }
 
 // Simple state object for navigation-related things like showing search
 class NavigationState: ObservableObject {
     @Published var showSearchView = false
+}
+
+// Need to define TabItem and BlurView here if ContentNavigationView.swift is deleted
+enum TabItem: String, CaseIterable {
+    case home = "Home"
+    case favorites = "Favorites"
+    case todo = "Todo" // Assuming TodoTabView exists
+    case settings = "Settings"
+    
+    var icon: String {
+        switch self {
+        case .home: return "house.fill"
+        case .favorites: return "heart.fill"
+        case .todo: return "checklist"
+        case .settings: return "gearshape.fill"
+        }
+    }
+}
+
+// Assuming TodoTabView is defined elsewhere
+struct TodoTabView: View { 
+    var body: some View { Text("Todo Tab") } 
+}
+
+struct BlurView: UIViewRepresentable {
+    var style: UIBlurEffect.Style
+    
+    func makeUIView(context: Context) -> UIVisualEffectView {
+        return UIVisualEffectView(effect: UIBlurEffect(style: style))
+    }
+    
+    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {
+        uiView.effect = UIBlurEffect(style: style)
+    }
 }
