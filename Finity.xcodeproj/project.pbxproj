@@ -62,6 +62,7 @@
 				E9FE38632DB5860A00772703 /* FirebaseCore in Frameworks */,
 				E9FE38612DB5860A00772703 /* FirebaseAnalytics in Frameworks */,
 				E9FE38652DB5860A00772703 /* FirebaseFirestore in Frameworks */,
+				E9FE38672DB58D0100772703 /* FirebaseFirestoreSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -125,6 +126,7 @@
 				E9FE38602DB5860A00772703 /* FirebaseAnalytics */,
 				E9FE38622DB5860A00772703 /* FirebaseCore */,
 				E9FE38642DB5860A00772703 /* FirebaseFirestore */,
+				E9FE38662DB58D0100772703 /* FirebaseFirestoreSwift */,
 			);
 			productName = Finity;
 			productReference = E9FE37F22DB5348300772703 /* Finity.app */;
