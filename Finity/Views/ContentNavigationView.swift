@@ -5,24 +5,22 @@ struct ContentNavigationView: View {
     @State private var showSearchView = false // State to control search presentation
     
     var body: some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .bottom) {
-                // Main content area
-                VStack(spacing: 0) {
-                    // Pass binding to TopTitleBar in each view
-                    currentTabView(showSearchView: $showSearchView)
-                }
-                
-                // Bottom tab bar
-                BottomTabBar(selectedTab: $selectedTab)
-                    .padding(.bottom, geometry.safeAreaInsets.bottom)
+        ZStack(alignment: .bottom) { // Align ZStack content to bottom
+            // Main content area fills the space
+            VStack(spacing: 0) {
+                currentTabView(showSearchView: $showSearchView)
             }
-            .background(Color.black.edgesIgnoringSafeArea(.all))
-            .edgesIgnoringSafeArea(.bottom)
-            .sheet(isPresented: $showSearchView) { // Present SearchView as a sheet
-                SearchView()
-                    .preferredColorScheme(.dark)
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            
+            // Bottom tab bar positioned at the bottom
+            BottomTabBar(selectedTab: $selectedTab)
+                // No padding needed here now, bar handles its own safe area
+        }
+        .background(Color.black.edgesIgnoringSafeArea(.all))
+        .edgesIgnoringSafeArea(.bottom) // Let the ZStack manage bottom edge
+        .sheet(isPresented: $showSearchView) { 
+            SearchView()
+                .preferredColorScheme(.dark)
         }
     }
     

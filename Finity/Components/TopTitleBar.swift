@@ -9,8 +9,8 @@ struct TopTitleBar: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Background with blur effect
-                BlurView(style: .systemUltraThinMaterialDark)
+                // Background back to black
+                Color.black
                     .edgesIgnoringSafeArea(.top)
                 
                 HStack {
@@ -57,7 +57,7 @@ struct TopTitleBar: View {
     }
 }
 
-// Simple Blur View using UIVisualEffectView
+// Simple Blur View using UIVisualEffectView (Keep for Bottom Bar)
 struct BlurView: UIViewRepresentable {
     var style: UIBlurEffect.Style
 

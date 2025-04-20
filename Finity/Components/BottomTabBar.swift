@@ -36,12 +36,14 @@ struct BottomTabBar: View {
                                 .foregroundColor(selectedTab == tab ? .white : .gray)
                         }
                         .frame(width: geometry.size.width / CGFloat(TabItem.allCases.count))
+                        .frame(maxHeight: .infinity)
                     }
                     .accessibility(identifier: "tab_\(tab.rawValue)")
                 }
             }
-            .frame(width: geometry.size.width, height: 60)
-            .background(BlurView(style: .systemUltraThinMaterialDark))
+            .frame(width: geometry.size.width, height: 60 + geometry.safeAreaInsets.bottom)
+            .padding(.bottom, geometry.safeAreaInsets.bottom)
+            .background(BlurView(style: .systemMaterialDark))
         }
         .frame(height: 60)
     }
@@ -49,8 +51,12 @@ struct BottomTabBar: View {
 
 struct BottomTabBar_Previews: PreviewProvider {
     static var previews: some View {
-        BottomTabBar(selectedTab: .constant(.home))
-            .preferredColorScheme(.dark)
-            .previewLayout(.sizeThatFits)
+        VStack {
+            Spacer()
+            BottomTabBar(selectedTab: .constant(.home))
+        }
+        .background(Color.blue)
+        .edgesIgnoringSafeArea(.bottom)
+        .preferredColorScheme(.dark)
     }
 }
