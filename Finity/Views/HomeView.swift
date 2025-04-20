@@ -34,8 +34,8 @@ struct HomeView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            // NavigationStack allows push navigation
-            NavigationStack {
+            // REMOVED: NavigationStack allows push navigation
+            // NavigationStack { 
                 VStack(spacing: 0) {
                     // Top Title Bar (Static, with Logo and Search)
                     TopTitleBar(showSearchView: $showSearchView, showLogo: true, showSearchIcon: true)
@@ -59,13 +59,16 @@ struct HomeView: View {
                  // Fetch data and set up observers when the view appears
                 .onAppear(perform: setupView)
                 // Define the destination for the NavigationLink based on the selected item
-                .navigationDestination(for: MediaItem.self) { item in
+                // This needs rethinking now that NavigationStack is removed.
+                // We might need to handle navigation differently (e.g., using sheets or changing tabs)
+                /* .navigationDestination(for: MediaItem.self) { item in
                     MediaDetailView(itemId: item.id) // Pass ID to detail view
                         .preferredColorScheme(.dark)
                         // Hide the default back button title if desired
                         .navigationBarTitle("", displayMode: .inline) 
-                }
-            }
+                }*/
+            // REMOVED: NavigationStack closing brace
+            // }
             .fullScreenCover(isPresented: $showPlayer, content: {
                  // Pass the selected item to the player view
                 if let itemToPlay = selectedItemForNavigation { 
@@ -99,7 +102,13 @@ struct HomeView: View {
                 FeaturedBannerCarouselView(
                     items: featuredItems, // Use local state updated via onReceive
                     onItemSelected: { item in
+                        // Navigation needs to be handled differently now.
+                        // Option 1: Present MediaDetailView as a sheet.
+                        // Option 2: Change to a different tab (less likely for details).
+                        // Option 3: Use NavigationLink from MediaRowView if that *is* inside a NavStack.
                         selectedItemForNavigation = item 
+                        // TODO: Decide how to present details - using sheet for now?
+                        // Might need a @State var like showDetailSheet = false
                     },
                     onPlaySelected: { item in
                         selectedItemForNavigation = item
@@ -121,9 +130,10 @@ struct HomeView: View {
                             ForEach(continueWatchingItems) { item in
                                 ContinueWatchingCard(item: item)
                                      .onTapGesture {
-                                         // Navigate to details or player?
-                                         // Let's navigate to details for now
+                                         // Navigation needs to be handled differently.
+                                         // Let's assume we want to show details. Present as sheet?
                                          selectedItemForNavigation = item
+                                         // TODO: Trigger detail presentation (e.g., sheet)
                                      }
                                      .accessibility(identifier: "continue_watching_\(item.id)")
                             }
@@ -143,6 +153,10 @@ struct HomeView: View {
                     
                     // Existing MediaRowView might need updates for new MediaItem structure
                     let row = MediaRow(title: "", items: recentlyAddedItems) // Title is now a separate Text view
+                    // MediaRowView itself contains NavigationLinks. This might break without a NavStack.
+                    // We need to decide the navigation pattern.
+                    // If MediaRowView *needs* NavigationLinks, HomeView might need the NavStack back,
+                    // OR MediaRowView needs to use a different presentation method (like buttons triggering sheets).
                     MediaRowView(row: row) // Removed selectedItem
                          .accessibility(identifier: "media_row_recently_added")
                          .padding(.bottom, 20)
