@@ -208,14 +208,14 @@ struct MediaPlayerView: View {
     // Helper to add player observers
     private func addPlayerObservers(player: AVPlayer) {
          // Play End observer
-         NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: player.currentItem, queue: .main) { [weak self] _ in
-             self?.isPlaying = false
+         NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: player.currentItem, queue: .main) { _ in
+             self.isPlaying = false
          }
          
          // Time observer
          let interval = CMTime(seconds: 1, preferredTimescale: 1)
-         timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-             guard let self = self, !self.isSeeking else { return }
+         timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { time in
+             guard !self.isSeeking else { return }
              self.currentTime = time.seconds
          }
     }

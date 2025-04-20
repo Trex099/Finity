@@ -100,9 +100,6 @@ struct MainContentNavigationView: View {
                     .tag(TabItem.favorites)
                     .environmentObject(jellyfinService)
                 
-                TodoTabView()
-                    .tag(TabItem.todo)
-                
                 SettingsView(showSearchView: $navigationState.showSearchView)
                     .tag(TabItem.settings)
                     .environmentObject(jellyfinService)
