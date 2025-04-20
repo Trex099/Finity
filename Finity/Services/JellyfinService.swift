@@ -272,7 +272,7 @@ class JellyfinService: ObservableObject {
              "Filters": "IsResumable",
              "Limit": "\(limit)",
              "Recursive": "true",
-             "Fields": "PrimaryImageAspectRatio,UserData,ParentId,RunTimeTicks", // Add RunTimeTicks
+             "Fields": "PrimaryImageAspectRatio,UserData,ParentId,RunTimeTicks,IndexNumber,ParentIndexNumber,SeriesName", // Added IndexNumber, ParentIndexNumber, SeriesName
              "ImageTypeLimit": "1"
          ]) else { return }
          
