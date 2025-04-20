@@ -34,11 +34,12 @@ struct HomeView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            // REMOVED: NavigationStack allows push navigation
-            // NavigationStack { 
+            // RE-ADD NavigationStack for NavigationLink in MediaRowView
+            NavigationStack { 
                 VStack(spacing: 0) {
                     // Top Title Bar (Static, with Logo and Search)
                     TopTitleBar(showSearchView: $showSearchView, showLogo: true, showSearchIcon: true)
+                        // Removed padding here in previous step, keep it removed for now.
                         .background(Color.black.edgesIgnoringSafeArea(.top))
                     
                     // Show loading indicator over the whole scroll view if loading initial data
@@ -57,17 +58,15 @@ struct HomeView: View {
                 .toolbar(.hidden, for: .navigationBar)
                  // Fetch data and set up observers when the view appears
                 .onAppear(perform: setupView)
-                // Define the destination for the NavigationLink based on the selected item
-                // This needs rethinking now that NavigationStack is removed.
-                // We might need to handle navigation differently (e.g., using sheets or changing tabs)
-                /* .navigationDestination(for: MediaItem.self) { item in
+                // RE-ADD Navigation Destination
+                .navigationDestination(for: MediaItem.self) { item in
                     MediaDetailView(itemId: item.id) // Pass ID to detail view
                         .preferredColorScheme(.dark)
                         // Hide the default back button title if desired
                         .navigationBarTitle("", displayMode: .inline) 
-                }*/
-            // REMOVED: NavigationStack closing brace
-            // }
+                }
+            // RE-ADD NavigationStack closing brace
+             }
             .fullScreenCover(isPresented: $showPlayer, content: {
                  // Pass the selected item to the player view
                 if let itemToPlay = selectedItemForNavigation { 
@@ -101,17 +100,12 @@ struct HomeView: View {
                 FeaturedBannerCarouselView(
                     items: featuredItems, // Use local state updated via onReceive
                     onItemSelected: { item in
-                        // Navigation needs to be handled differently now.
-                        // Option 1: Present MediaDetailView as a sheet.
-                        // Option 2: Change to a different tab (less likely for details).
-                        // Option 3: Use NavigationLink from MediaRowView if that *is* inside a NavStack.
+                        // Set item for potential navigation (now handled by NavigationLink/Destination)
                         selectedItemForNavigation = item 
-                        // TODO: Decide how to present details - using sheet for now?
-                        // Might need a @State var like showDetailSheet = false
                     },
                     onPlaySelected: { item in
                         selectedItemForNavigation = item
-                        showPlayer = true
+                        showPlayer = true // Trigger fullscreen player
                     }
                 )
                 .padding(.bottom, 20)
@@ -127,12 +121,12 @@ struct HomeView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         LazyHStack(spacing: 15) {
                             ForEach(continueWatchingItems) { item in
+                                // ContinueWatchingCard itself won't navigate now, but will have tap for play
                                 ContinueWatchingCard(item: item)
                                      .onTapGesture {
-                                         // Navigation needs to be handled differently.
-                                         // Let's assume we want to show details. Present as sheet?
+                                         // Tap gesture will now trigger direct playback
                                          selectedItemForNavigation = item
-                                         // TODO: Trigger detail presentation (e.g., sheet)
+                                         showPlayer = true
                                      }
                                      .accessibility(identifier: "continue_watching_\(item.id)")
                             }
@@ -150,13 +144,9 @@ struct HomeView: View {
                         .foregroundColor(.white)
                         .padding(.horizontal)
                     
-                    // Existing MediaRowView might need updates for new MediaItem structure
-                    let row = MediaRow(title: "", items: recentlyAddedItems) // Title is now a separate Text view
-                    // MediaRowView itself contains NavigationLinks. This might break without a NavStack.
-                    // We need to decide the navigation pattern.
-                    // If MediaRowView *needs* NavigationLinks, HomeView might need the NavStack back,
-                    // OR MediaRowView needs to use a different presentation method (like buttons triggering sheets).
-                    MediaRowView(row: row) // Removed selectedItem
+                    // MediaRowView uses NavigationLink, which requires the NavStack we added back
+                    let row = MediaRow(title: "", items: recentlyAddedItems)
+                    MediaRowView(row: row)
                          .accessibility(identifier: "media_row_recently_added")
                          .padding(.bottom, 20)
                 }
