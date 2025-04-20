@@ -101,7 +101,8 @@ struct MediaPosterCard_Previews: PreviewProvider {
         overview: "A thief who steals corporate secrets through dream-sharing technology.", 
         productionYear: 2010, communityRating: 8.8, officialRating: "PG-13", 
         imageTags: ["Primary": "previewTag"], backdropImageTags: [], 
-        userData: nil, genres: ["Action", "Sci-Fi"], runTimeTicks: nil
+        userData: nil, genres: ["Action", "Sci-Fi"], runTimeTicks: nil,
+        indexNumber: nil, parentIndexNumber: nil, seriesName: nil
     )
     
     static var previews: some View {
