@@ -20,42 +20,51 @@ struct ContinueWatchingCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ZStack(alignment: .bottom) {
-                 // Image - Needs proper URL construction
-                 // Using AsyncImage for network loading
-                AsyncImage(url: jellyfinService.imageUrl(for: item.id, tag: item.primaryImageTag, type: .primary)) {
+            ZStack(alignment: .center) { // Align content to center for the play button
+                 // Image
+                AsyncImage(url: jellyfinService.imageUrl(for: item.id, tag: item.primaryImageTag, type: .primary, maxHeight: 150)) { // Adjust maxHeight if needed
                     phase in
                     switch phase {
                     case .success(let image):
                         image.resizable()
+                             .overlay(Color.black.opacity(0.2)) // Subtle darken for contrast
                     case .failure(_):
-                        Image(systemName: "photo") // Placeholder on failure
+                        Image(systemName: "photo")
                             .resizable()
                             .scaledToFit()
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .background(Color.gray.opacity(0.3))
                     case .empty:
-                        ProgressView() // Placeholder while loading
+                        ProgressView()
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .background(Color.gray.opacity(0.1))
                     @unknown default:
                         EmptyView()
                     }
                 }
-                .aspectRatio(16/9, contentMode: .fill) // Assume 16:9 aspect ratio for posters
-                .frame(width: 180, height: 101) // Define a fixed size for the card image
+                .aspectRatio(16/9, contentMode: .fill)
+                .frame(width: 180, height: 101)
                 .clipped()
                 .cornerRadius(4)
                 
-                // Thin Progress Bar overlay
+                // Play Button Overlay
+                Image(systemName: "play.circle.fill")
+                    .font(.system(size: 40))
+                    .foregroundColor(.white.opacity(0.8))
+                    .shadow(radius: 3)
+                    .accessibility(identifier: "play_button_overlay")
+                
+                // REMOVED: Thin Progress Bar overlay
+                /*
                 ProgressView(value: progress, total: 1.0)
                     .progressViewStyle(LinearProgressViewStyle(tint: .red))
                     .padding(.horizontal, 4)
                     .padding(.bottom, 4)
-                    .opacity(progress > 0 && progress < 1 ? 1 : 0) // Show only if in progress
+                    .opacity(progress > 0 && progress < 1 ? 1 : 0)
+                */
             }
             
-            // Title below image (optional, could overlay)
+            // Title below image
             Text(item.name)
                 .font(.caption)
                 .foregroundColor(.white)
@@ -63,6 +72,8 @@ struct ContinueWatchingCard: View {
                 .padding(.top, 4)
                 .frame(width: 180, alignment: .leading) // Match image width
         }
+        // Ensure the tap gesture area covers the whole VStack
+        .contentShape(Rectangle())
     }
 }
 

@@ -54,6 +54,9 @@ class JellyfinService: ObservableObject {
     // Fetched Data State
     @Published var latestItems: [MediaItem] = []
     @Published var continueWatchingItems: [MediaItem] = []
+    @Published var recentlyAddedItems: [MediaItem] = [] // Assuming you might fetch this later
+    @Published var movieItems: [MediaItem] = [] // New state for Movies
+    @Published var showItems: [MediaItem] = [] // New state for TV Shows
     @Published var currentItemDetails: MediaItem? = nil
     @Published var isLoadingData = false // For general data loading
     
@@ -268,6 +271,21 @@ class JellyfinService: ObservableObject {
     
     // MARK: - Data Fetching
     
+    // Helper to fetch initial data (call after authentication or from relevant views)
+    func fetchInitialHomeData() {
+        // Ensure user is authenticated and we have userID
+        guard isAuthenticated, userID != nil else {
+            print("Cannot fetch initial home data: User not authenticated.")
+            return
+        }
+        print("Fetching initial home data...")
+        fetchLatestMedia(limit: 6)
+        fetchContinueWatching()
+        // fetchRecentlyAdded() // Call if/when implemented
+        fetchMovies()
+        fetchShows()
+    }
+    
     func fetchLatestMedia(limit: Int = 10) {
         // Safely unwrap userID
         guard let currentUserID = userID else {
@@ -331,6 +349,95 @@ class JellyfinService: ObservableObject {
              .store(in: &cancellables)
      }
      
+     func fetchRecentlyAdded(limit: Int = 20) { // Example implementation
+        guard let currentUserID = userID else { return }
+        guard let request = buildAuthenticatedRequest(endpoint: "/Users/\(currentUserID)/Items", params: [
+            "SortBy": "DateCreated", // Or DateAdded?
+            "SortOrder": "Descending",
+            "IncludeItemTypes": "Movie,Episode", // Or maybe just Movie, Series?
+            "Filters": "IsUnplayed", // Optional filter
+            "Limit": "\(limit)",
+            "Recursive": "true",
+            "Fields": "PrimaryImageAspectRatio,UserData,ParentId,RunTimeTicks,IndexNumber,ParentIndexNumber,SeriesName",
+            "ImageTypeLimit": "1"
+        ]) else { return }
+        
+        isLoadingData = true
+        URLSession.shared.dataTaskPublisher(for: request)
+            .tryMap(handleHTTPResponse)
+            .decode(type: JellyfinItemsResponse<MediaItem>.self, decoder: JSONDecoder())
+            .receive(on: DispatchQueue.main)
+            .map { $0.items }
+            .sink(receiveCompletion: { [weak self] completion in
+                self?.isLoadingData = false // Manage loading state more granularly if needed
+                if case .failure(let error) = completion { self?.handleAPIError(error, context: "Fetch Recently Added") }
+            }, receiveValue: { [weak self] items in
+                print("Fetched \(items.count) recently added items.")
+                self?.recentlyAddedItems = items // Update the correct state
+            })
+            .store(in: &cancellables)
+     }
+     
+     // New function to fetch Movies
+     func fetchMovies(limit: Int = 20, sortBy: String = "SortName", sortOrder: String = "Ascending") {
+        guard let currentUserID = userID else { return }
+        guard let request = buildAuthenticatedRequest(endpoint: "/Users/\(currentUserID)/Items", params: [
+             "IncludeItemTypes": "Movie",
+             "Recursive": "true",
+             "SortBy": sortBy,
+             "SortOrder": sortOrder,
+             "Limit": "\(limit)",
+             "Fields": "PrimaryImageAspectRatio,UserData", // Add other fields as needed by MediaRowView/MediaPosterCard
+             "ImageTypeLimit": "1"
+         ]) else { return }
+         
+         // Consider a separate isLoading flag for movies if needed
+         // isLoadingData = true 
+         URLSession.shared.dataTaskPublisher(for: request)
+             .tryMap(handleHTTPResponse)
+             .decode(type: JellyfinItemsResponse<MediaItem>.self, decoder: JSONDecoder())
+             .receive(on: DispatchQueue.main)
+             .map { $0.items }
+             .sink(receiveCompletion: { [weak self] completion in
+                 // self?.isLoadingData = false
+                 if case .failure(let error) = completion { self?.handleAPIError(error, context: "Fetch Movies") }
+             }, receiveValue: { [weak self] items in
+                 print("Fetched \(items.count) movie items.")
+                 self?.movieItems = items
+             })
+             .store(in: &cancellables)
+     }
+     
+     // New function to fetch TV Shows (Series)
+     func fetchShows(limit: Int = 20, sortBy: String = "SortName", sortOrder: String = "Ascending") {
+        guard let currentUserID = userID else { return }
+        guard let request = buildAuthenticatedRequest(endpoint: "/Users/\(currentUserID)/Items", params: [
+             "IncludeItemTypes": "Series", // Fetch Series type
+             "Recursive": "true",
+             "SortBy": sortBy,
+             "SortOrder": sortOrder,
+             "Limit": "\(limit)",
+             "Fields": "PrimaryImageAspectRatio,UserData", // Add other fields as needed
+             "ImageTypeLimit": "1"
+         ]) else { return }
+         
+         // Consider a separate isLoading flag for shows if needed
+         // isLoadingData = true
+         URLSession.shared.dataTaskPublisher(for: request)
+             .tryMap(handleHTTPResponse)
+             .decode(type: JellyfinItemsResponse<MediaItem>.self, decoder: JSONDecoder())
+             .receive(on: DispatchQueue.main)
+             .map { $0.items }
+             .sink(receiveCompletion: { [weak self] completion in
+                 // self?.isLoadingData = false
+                 if case .failure(let error) = completion { self?.handleAPIError(error, context: "Fetch Shows") }
+             }, receiveValue: { [weak self] items in
+                 print("Fetched \(items.count) show items.")
+                 self?.showItems = items
+             })
+             .store(in: &cancellables)
+     }
+
      func fetchItemDetails(itemID: String) {
         // Safely unwrap userID
         guard let currentUserID = userID else {
