@@ -16,45 +16,50 @@ enum TabItem: String, CaseIterable {
 
 struct BottomTabBar: View {
     @Binding var selectedTab: TabItem
-    let barContentHeight: CGFloat = 55 // << Increased height for content
+    let barContentHeight: CGFloat = 55 // Keep increased height
 
     var body: some View {
         GeometryReader { geometry in
-            VStack(spacing: 0) {
-                Spacer()
-
-                HStack(spacing: 0) {
-                    ForEach(TabItem.allCases, id: \.self) { tab in
-                        Button(action: {
-                            withAnimation {
-                                selectedTab = tab
-                            }
-                        }) {
-                            VStack(spacing: 4) {
-                                Image(systemName: tab.icon)
-                                    .font(.system(size: 22)) // Icon size remains the same
-                                    .foregroundColor(selectedTab == tab ? .white : .gray)
-                                
-                                Text(tab.rawValue)
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(selectedTab == tab ? .white : .gray)
-                            }
-                            // Button takes full width and the increased content height
-                            .frame(width: geometry.size.width / CGFloat(TabItem.allCases.count))
-                            .frame(height: barContentHeight)
+            // Calculate total height required including safe area
+            let totalHeight = barContentHeight + geometry.safeAreaInsets.bottom
+            
+            HStack(spacing: 0) {
+                ForEach(TabItem.allCases, id: \.self) { tab in
+                    Button(action: {
+                        withAnimation {
+                            selectedTab = tab
                         }
-                        .accessibility(identifier: "tab_\(tab.rawValue)")
+                    }) {
+                        VStack(spacing: 4) {
+                            Spacer() // Push content down within the VStack
+                            Image(systemName: tab.icon)
+                                .font(.system(size: 22))
+                                .foregroundColor(selectedTab == tab ? .white : .gray)
+                            
+                            Text(tab.rawValue)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(selectedTab == tab ? .white : .gray)
+                            // Add padding *only* to the bottom of the VStack content
+                            // Effectively pushing the content upwards relative to the bar's bottom edge
+                            Spacer().frame(height: geometry.safeAreaInsets.bottom / 2) // Adjust spacing
+                             // Add slightly less than full safe area padding inside
+
+                        }
+                        .frame(width: geometry.size.width / CGFloat(TabItem.allCases.count))
+                        .frame(height: totalHeight) // Button takes full calculated height
+                       // .padding(.bottom, geometry.safeAreaInsets.bottom) // Padding applied inside VStack now
+
                     }
+                    .accessibility(identifier: "tab_\(tab.rawValue)")
                 }
-                .frame(width: geometry.size.width) // HStack takes full width
-                .frame(height: barContentHeight)   // HStack has the increased content height
-                .padding(.bottom, geometry.safeAreaInsets.bottom) // Pad content UP from bottom edge
-                .background(BlurView(style: .systemMaterialDark)) // Apply background AFTER padding
             }
-            .edgesIgnoringSafeArea(.bottom)
+            .frame(width: geometry.size.width, height: totalHeight) // HStack uses total height
+            .background(BlurView(style: .systemMaterialDark).edgesIgnoringSafeArea(.bottom)) // Background ignores safe area
         }
-        // Approximate total height for the container view (Increased content height + estimated safe area)
-        .frame(height: barContentHeight + 34) 
+        // The view container should have the final total height
+        .frame(height: totalHeight)
+        .edgesIgnoringSafeArea(.bottom)
+
     }
 }
 
@@ -64,7 +69,7 @@ struct BottomTabBar_Previews: PreviewProvider {
             Spacer()
             BottomTabBar(selectedTab: .constant(.home))
         }
-        .background(Color.blue)
+        .background(Color.gray) // Use a different color to see safe area
         .preferredColorScheme(.dark)
     }
 }
