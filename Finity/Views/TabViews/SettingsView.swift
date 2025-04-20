@@ -15,7 +15,8 @@ struct SettingsView: View {
                 // Top Title Bar (Static, Custom Title, No Logo/Search)
                 TopTitleBar(showSearchView: $showSearchView, title: "Settings", showLogo: false, showSearchIcon: false)
                     .padding(.top, geometry.safeAreaInsets.top)
-                    .background(BlurView(style: .systemUltraThinMaterialDark).edgesIgnoringSafeArea(.top))
+                    // Ensure background is black and covers safe area
+                    .background(Color.black.edgesIgnoringSafeArea(.top))
                 
                 // Scrollable content below the title bar
                 ScrollView {

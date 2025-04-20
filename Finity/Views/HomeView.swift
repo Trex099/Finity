@@ -42,7 +42,7 @@ struct HomeView: View {
                 // Top Title Bar (Static, with Logo and Search)
                 TopTitleBar(showSearchView: $showSearchView, showLogo: true, showSearchIcon: true)
                     .padding(.top, geometry.safeAreaInsets.top)
-                    .background(BlurView(style: .systemUltraThinMaterialDark).edgesIgnoringSafeArea(.top))
+                    .background(Color.black.edgesIgnoringSafeArea(.top))
                 
                 // Scrollable content below the title bar
                 ScrollView {
@@ -65,7 +65,6 @@ struct HomeView: View {
                                 tempMovies[(startIndex + i) % tempMovies.count]
                             }
                             let row = MediaRow(title: categories[index], items: rowItems)
-                            // Use the MediaRowView from Components/MediaRow.swift
                             MediaRowView(row: row, selectedItem: $selectedItemForDetail)
                                 .accessibility(identifier: "media_row_\(index)")
                         }
