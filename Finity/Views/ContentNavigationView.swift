@@ -5,47 +5,40 @@ struct ContentNavigationView: View {
     @State private var showSearchView = false // State to control search presentation
     
     var body: some View {
-        TabView(selection: $selectedTab) {
-            HomeView(showSearchView: $showSearchView)
-                .tabItem {
-                    Image(systemName: TabItem.home.icon)
-                    Text(TabItem.home.rawValue)
-                }
-                .tag(TabItem.home)
-            
-            FavoritesView(showSearchView: $showSearchView)
-                .tabItem {
-                    Image(systemName: TabItem.favorites.icon)
-                    Text(TabItem.favorites.rawValue)
-                }
-                .tag(TabItem.favorites)
-            
-            SettingsView(showSearchView: $showSearchView)
-                .tabItem {
-                    Image(systemName: TabItem.settings.icon)
-                    Text(TabItem.settings.rawValue)
-                }
-                .tag(TabItem.settings)
-        }
-        .accentColor(.white) // Active tab color
-        .onAppear {
-            // Configure tab bar to match iOS standard appearance
-            let appearance = UITabBarAppearance()
-            appearance.configureWithDefaultBackground()
-            appearance.backgroundColor = UIColor.black.withAlphaComponent(0.8)
-            
-            // Set colors for the tab items
-            appearance.stackedLayoutAppearance.normal.iconColor = UIColor.gray
-            appearance.stackedLayoutAppearance.normal.titleTextAttributes = [NSAttributedString.Key.foregroundColor: UIColor.gray]
-            
-            appearance.stackedLayoutAppearance.selected.iconColor = UIColor.white
-            appearance.stackedLayoutAppearance.selected.titleTextAttributes = [NSAttributedString.Key.foregroundColor: UIColor.white]
-            
-            // Apply the appearance to the tab bar
-            UITabBar.appearance().standardAppearance = appearance
-            if #available(iOS 15.0, *) {
-                UITabBar.appearance().scrollEdgeAppearance = appearance
+        ZStack(alignment: .bottom) {
+            TabView(selection: $selectedTab) {
+                HomeView(showSearchView: $showSearchView)
+                    .tag(TabItem.home)
+                
+                FavoritesView(showSearchView: $showSearchView)
+                    .tag(TabItem.favorites)
+                
+                SettingsView(showSearchView: $showSearchView)
+                    .tag(TabItem.settings)
             }
+            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+            
+            // Custom bottom tab bar that matches iOS standard
+            HStack(spacing: 0) {
+                ForEach(TabItem.allCases, id: \.self) { tab in
+                    Button(action: {
+                        selectedTab = tab
+                    }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: tab.icon)
+                                .font(.system(size: 22))
+                                .foregroundColor(selectedTab == tab ? .white : .gray)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                    }
+                }
+            }
+            .background(
+                Color.black.opacity(0.8)
+                    .background(Material.ultraThinMaterial)
+                    .ignoresSafeArea(edges: .bottom)
+            )
         }
         .sheet(isPresented: $showSearchView) { 
             SearchView()
