@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ContentNavigationView: View {
+    @EnvironmentObject var jellyfinService: JellyfinService
+    
     @State private var selectedTab: TabItem = .home
     @State private var showSearchView = false // State to control search presentation
     
@@ -9,12 +11,15 @@ struct ContentNavigationView: View {
             TabView(selection: $selectedTab) {
                 HomeView(showSearchView: $showSearchView)
                     .tag(TabItem.home)
+                    .environmentObject(jellyfinService)
                 
                 FavoritesView(showSearchView: $showSearchView)
                     .tag(TabItem.favorites)
+                    .environmentObject(jellyfinService)
                 
                 SettingsView(showSearchView: $showSearchView)
                     .tag(TabItem.settings)
+                    .environmentObject(jellyfinService)
             }
             .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
             
@@ -49,6 +54,7 @@ struct ContentNavigationView: View {
         .sheet(isPresented: $showSearchView) { 
             SearchView()
                 .preferredColorScheme(.dark)
+                .environmentObject(jellyfinService)
         }
     }
 }
@@ -57,5 +63,6 @@ struct ContentNavigationView_Previews: PreviewProvider {
     static var previews: some View {
         ContentNavigationView()
             .preferredColorScheme(.dark)
+            .environmentObject(JellyfinService())
     }
 } 
