@@ -25,6 +25,7 @@ struct ContentNavigationView: View {
                     .environmentObject(jellyfinService)
             }
             .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+            .padding(.bottom, 60)
             
             // Custom bottom tab bar that matches iOS standard
             HStack(spacing: 0) {
