@@ -1,6 +1,8 @@
 import Foundation
 import Combine
 import UIKit
+import FirebaseFirestore // Add Firestore
+import FirebaseFirestoreSwift // Add Swift extensions
 
 // Basic structure for Jellyfin Authentication Response
 struct AuthenticationResponse: Codable {
@@ -31,6 +33,13 @@ struct SessionInfo: Codable {
     // Add relevant fields if needed
 }
 
+// Define Codable struct for Firestore
+struct UserCredentials: Codable {
+    let serverURL: String
+    let userID: String
+    let accessToken: String
+}
+
 class JellyfinService: ObservableObject {
     // Authentication State
     @Published var isAuthenticated = false
@@ -39,6 +48,7 @@ class JellyfinService: ObservableObject {
     @Published var userID: String? = nil
     @Published var errorMessage: String? = nil
     @Published var isLoadingAuth = false // Renamed for clarity
+    @Published var isCheckingAuth = true // New state for initial credential check
     
     // Fetched Data State
     @Published var latestItems: [MediaItem] = []
@@ -47,15 +57,112 @@ class JellyfinService: ObservableObject {
     @Published var isLoadingData = false // For general data loading
     
     private var cancellables = Set<AnyCancellable>()
+    private let db = Firestore.firestore() // Firestore database reference
+    private var firestoreListener: ListenerRegistration? // For potential real-time updates if needed later
 
-    // Initializer - No longer takes apiKey directly
+    // Initializer - Load credentials on init
     init() {
-        // TODO: Load saved credentials from Keychain if available
-        // For now, starts unauthenticated
-        print("JellyfinService Initialized")
+        print("JellyfinService Initializing - Loading credentials...")
+        loadCredentialsFromFirestore()
+        // isCheckingAuth will be set to false within loadCredentialsFromFirestore
     }
 
-    // Authentication function
+    // --- Firestore Credential Management ---
+
+    private func saveCredentialsToFirestore() {
+        guard let serverURL = self.serverURL, let userID = self.userID, let accessToken = self.accessToken else {
+            print("Error: Missing credentials to save.")
+            return
+        }
+        let credentials = UserCredentials(serverURL: serverURL, userID: userID, accessToken: accessToken)
+        
+        do {
+            // Use "currentUserSession" as a fixed document ID
+            try db.collection("userSessions").document("currentUserSession").setData(from: credentials) { error in
+                 if let error = error {
+                     print("Error saving credentials to Firestore: \(error.localizedDescription)")
+                     // Optionally set an error message for the user
+                 } else {
+                     print("Credentials successfully saved to Firestore.")
+                 }
+            }
+        } catch let error {
+            print("Error encoding credentials for Firestore: \(error.localizedDescription)")
+        }
+    }
+
+    private func loadCredentialsFromFirestore() {
+        // Start checking auth state
+        DispatchQueue.main.async {
+             self.isCheckingAuth = true
+        }
+        
+        db.collection("userSessions").document("currentUserSession").getDocument { (document, error) in
+            DispatchQueue.main.async { // Ensure UI updates happen on main thread
+                self.isCheckingAuth = false // Finished checking
+                if let error = error {
+                    print("Error loading credentials from Firestore: \(error.localizedDescription)")
+                    // Don't treat loading error as critical, just means no saved session
+                    self.clearAuthenticationLocally() // Ensure clean state
+                    return
+                }
+
+                if let document = document, document.exists {
+                    do {
+                        if let credentials = try document.data(as: UserCredentials?.self) {
+                            print("Credentials loaded from Firestore for user: \(credentials.userID)")
+                            self.serverURL = credentials.serverURL
+                            self.userID = credentials.userID
+                            self.accessToken = credentials.accessToken
+                            self.isAuthenticated = true
+                            self.errorMessage = nil
+                            
+                            // Optionally, trigger data fetches now that we are authenticated
+                            // self.fetchInitialData() // You might create a helper function for this
+                        } else {
+                            print("No credentials found in Firestore document or failed to decode.")
+                            self.clearAuthenticationLocally()
+                        }
+                    } catch let error {
+                        print("Error decoding credentials from Firestore: \(error.localizedDescription)")
+                        self.clearAuthenticationLocally()
+                    }
+                } else {
+                    print("Credentials document does not exist in Firestore.")
+                    self.clearAuthenticationLocally()
+                }
+            }
+        }
+    }
+
+    private func clearCredentialsFromFirestore(completion: (() -> Void)? = nil) {
+        db.collection("userSessions").document("currentUserSession").delete() { error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Error removing credentials from Firestore: \(error.localizedDescription)")
+                    // Handle error if needed, maybe show message?
+                } else {
+                    print("Credentials successfully removed from Firestore.")
+                }
+                 completion?() // Call completion handler regardless of error
+            }
+        }
+    }
+    
+    // Separate function to clear local state without touching Firestore
+    private func clearAuthenticationLocally() {
+        isAuthenticated = false
+        accessToken = nil
+        userID = nil
+        serverURL = nil // Clear server URL on local clear as well
+        latestItems = []
+        continueWatchingItems = []
+        currentItemDetails = nil
+        // Don't clear errorMessage here, might be useful
+    }
+
+    // --- Authentication Flow ---
+
     func authenticate(serverURL: String, username: String, password PlainPassword: String) {
         guard let url = URL(string: serverURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))) else { // Ensure no trailing slash
             self.errorMessage = "Invalid Server URL format."
@@ -75,18 +182,22 @@ class JellyfinService: ObservableObject {
         request.setValue(clientAuthHeaderValue(), forHTTPHeaderField: "X-Emby-Authorization")
         request.httpBody = httpBody
         
-        isLoadingAuth = true
-        self.errorMessage = nil
+        // Start loading state
+        DispatchQueue.main.async {
+            self.isLoadingAuth = true
+            self.errorMessage = nil
+        }
 
         URLSession.shared.dataTaskPublisher(for: request)
             .tryMap(handleHTTPResponse)
             .decode(type: AuthenticationResponse.self, decoder: JSONDecoder())
             .receive(on: DispatchQueue.main)
             .sink(receiveCompletion: { [weak self] completion in
-                self?.isLoadingAuth = false
+                self?.isLoadingAuth = false // Stop loading indicator
                 if case .failure(let error) = completion {
                     self?.handleAPIError(error, context: "Authentication")
-                    self?.clearAuthentication()
+                    self?.clearAuthenticationLocally() // Clear local state on failure
+                    // Don't clear Firestore here, keep the failed attempt potentially
                 }
             }, receiveValue: { [weak self] authResponse in
                 print("Authentication successful for user: \(authResponse.user.name)")
@@ -95,28 +206,27 @@ class JellyfinService: ObservableObject {
                 self?.userID = authResponse.user.id
                 self?.serverURL = serverURL.trimmingCharacters(in: CharacterSet(charactersIn: "/")) // Store cleaned URL
                 self?.errorMessage = nil
-                // TODO: Securely save credentials
+                
+                // Save credentials on successful authentication
+                self?.saveCredentialsToFirestore() 
+                
+                // Optionally trigger initial data fetch after login
+                // self?.fetchInitialData()
             })
             .store(in: &cancellables)
     }
 
     func logout() {
-        clearAuthentication()
-        // TODO: Remove credentials from Keychain
-        print("User logged out.")
+        // 1. Clear credentials from Firestore
+        clearCredentialsFromFirestore { [weak self] in
+            // 2. Clear local authentication state AFTER Firestore clear completes (or fails)
+            DispatchQueue.main.async {
+                 self?.clearAuthenticationLocally()
+                 print("User logged out and local/Firestore state cleared.")
+            }
+        }
     }
     
-    private func clearAuthentication() {
-        isAuthenticated = false
-        accessToken = nil
-        userID = nil
-        serverURL = nil
-        // Clear fetched data as well
-        latestItems = []
-        continueWatchingItems = []
-        currentItemDetails = nil
-    }
-
     // MARK: - Data Fetching
     
     func fetchLatestMedia(limit: Int = 10) {
