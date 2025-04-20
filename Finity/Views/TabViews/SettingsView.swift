@@ -5,19 +5,21 @@ struct SettingsView: View {
     @State private var isAutoPlayEnabled = true
     @State private var preferredQuality = "Auto"
     @State private var username = "User"
+    @Binding var showSearchView: Bool // Binding from ContentNavigationView
     
     private let qualityOptions = ["Auto", "Low", "Medium", "High", "Ultra HD"]
     
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                // Scrollable content including the title bar
+                // Top Title Bar (Static)
+                TopTitleBar(showSearchView: $showSearchView)
+                    .padding(.top, geometry.safeAreaInsets.top)
+                    .background(Color.black)
+                
+                // Scrollable content below the title bar
                 ScrollView {
                     VStack(spacing: 0) {
-                        // Top metallic title now inside scroll view
-                        TopTitleBar()
-                            .padding(.top, geometry.safeAreaInsets.top)
-                        
                         // Header
                         HStack {
                             Text("Settings")
@@ -204,8 +206,8 @@ struct SettingsView: View {
                         .padding(.top, 16) // Add padding below header
                     }
                 }
-                .edgesIgnoringSafeArea(.top) // Allow content to scroll under status bar
             }
+            .edgesIgnoringSafeArea(.top)
             .background(Color.black.edgesIgnoringSafeArea(.all))
         }
     }
@@ -213,7 +215,10 @@ struct SettingsView: View {
 
 struct SettingsView_Previews: PreviewProvider {
     static var previews: some View {
-        SettingsView()
+        // Provide a constant binding for the preview
+        @State var showSearch = false
+        
+        SettingsView(showSearchView: $showSearch)
             .preferredColorScheme(.dark)
     }
 } 
