@@ -41,7 +41,7 @@ struct SearchView: View {
                         .padding(12)
                         .font(.system(size: 16))
                         .foregroundColor(.white)
-                        .onChange(of: searchText) { newValue in
+                        .onChange(of: searchText) { oldValue, newValue in
                             isSearching = !newValue.isEmpty
                         }
                     
