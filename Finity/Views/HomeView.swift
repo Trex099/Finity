@@ -52,7 +52,6 @@ struct HomeView: View {
                         contentScrollView
                     }
                 }
-                .edgesIgnoringSafeArea(.top)
                 .background(Color.black)
                 // Navigation title managed by TopTitleBar, so keep this hidden
                 .navigationBarTitleDisplayMode(.inline)
