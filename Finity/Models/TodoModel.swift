@@ -1,6 +1,6 @@
 import Foundation
 import FirebaseFirestore
-import FirebaseFirestoreCombine_Community
+import FirebaseFirestoreCombineSwift
 
 struct Todo: Identifiable, Codable {
     @DocumentID var id: String?

@@ -1,6 +1,6 @@
 import Foundation
 import FirebaseFirestore
-import FirebaseFirestoreCombine_Community
+import FirebaseFirestoreCombineSwift
 
 class TodoService: ObservableObject {
     @Published var todos: [Todo] = []
