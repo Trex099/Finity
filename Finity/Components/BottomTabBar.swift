@@ -16,36 +16,40 @@ enum TabItem: String, CaseIterable {
 
 struct BottomTabBar: View {
     @Binding var selectedTab: TabItem
-    let barContentHeight: CGFloat = 55 // Height for the actual icons/text area
+    let barContentHeight: CGFloat = 60 // Increased content height slightly
 
     var body: some View {
-        // HStack contains the buttons - NO background or complex framing here
-        HStack(spacing: 0) {
-            ForEach(TabItem.allCases, id: \.self) { tab in
-                Button(action: {
-                    withAnimation {
-                        selectedTab = tab
+        GeometryReader { geometry in // Use geometry ONLY for safe area bottom
+            HStack(spacing: 0) {
+                ForEach(TabItem.allCases, id: \.self) { tab in
+                    Button(action: {
+                        withAnimation {
+                            selectedTab = tab
+                        }
+                    }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: tab.icon)
+                                .font(.system(size: 24)) // Slightly larger icon
+                                .foregroundColor(selectedTab == tab ? .white : .gray)
+                            
+                            Text(tab.rawValue)
+                                .font(.system(size: 11, weight: .medium)) // Slightly smaller text
+                                .foregroundColor(selectedTab == tab ? .white : .gray)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: barContentHeight) // Content area height
                     }
-                }) {
-                    VStack(spacing: 4) {
-                        Image(systemName: tab.icon)
-                            .font(.system(size: 22))
-                            .foregroundColor(selectedTab == tab ? .white : .gray)
-                        
-                        Text(tab.rawValue)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(selectedTab == tab ? .white : .gray)
-                    }
-                    .frame(maxWidth: .infinity)
-                    // Content VStack is centered within this height
-                    .frame(height: barContentHeight)
+                    .accessibility(identifier: "tab_\(tab.rawValue)")
                 }
-                .accessibility(identifier: "tab_\(tab.rawValue)")
             }
+            .frame(height: barContentHeight) // HStack has fixed content height
+            .background(BlurView(style: .systemMaterialDark)) // Background covers content area
+            .padding(.bottom, geometry.safeAreaInsets.bottom) // Pad the whole bar up
         }
-        // The HStack itself only defines the content area height
-        .frame(height: barContentHeight)
-        // Background and safe area padding are handled by the container
+         // Allow the GeometryReader (and thus the padded bar) to determine its own height
+         // which will be barContentHeight + safeAreaInsets.bottom
+        .edgesIgnoringSafeArea(.bottom) // Let the background potentially extend visually if needed by OS
+
     }
 }
 
@@ -66,13 +70,10 @@ struct BottomTabBar_Previews: PreviewProvider {
     static var previews: some View {
         VStack {
             Spacer()
-            // Preview the bar itself, padding applied in container
             BottomTabBar(selectedTab: .constant(.home))
-                .background(BlurView(style: .systemMaterialDark)) // Add background for preview
-                .padding(.bottom, 34) // Simulate safe area padding
         }
         .background(Color.gray)
-        .edgesIgnoringSafeArea(.bottom)
+        .edgesIgnoringSafeArea(.all)
         .preferredColorScheme(.dark)
     }
 }
