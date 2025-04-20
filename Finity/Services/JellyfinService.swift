@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import UIKit
 import FirebaseFirestore // Keep Firestore
+import FirebaseAuth // <-- Add this import
 
 // Basic structure for Jellyfin Authentication Response
 struct AuthenticationResponse: Codable {
@@ -51,12 +52,49 @@ class JellyfinService: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let db = Firestore.firestore() // Firestore database reference
     private var firestoreListener: ListenerRegistration? // For potential real-time updates if needed later
+    private var authStateHandler: AuthStateDidChangeListenerHandle? // <-- Add Auth listener handle
 
-    // Initializer - Load credentials on init
+    // Initializer - Set up Auth listener
     init() {
-        print("JellyfinService Initializing - Loading credentials...")
-        loadCredentialsFromFirestore()
-        // isCheckingAuth will be set to false within loadCredentialsFromFirestore
+        print("JellyfinService Initializing - Setting up Auth listener...")
+        // Remove direct call: loadCredentialsFromFirestore()
+        setupAuthListener() // <-- Call new setup function
+        // isCheckingAuth starts true and is set based on Auth state
+    }
+    
+    // Add deinitializer to remove listener
+    deinit {
+        if let handle = authStateHandler {
+            Auth.auth().removeStateDidChangeListener(handle)
+            print("JellyfinService Deinitializing - Removed Auth listener.")
+        }
+    }
+    
+    // --- Auth State Listener Setup ---
+    private func setupAuthListener() {
+        // Start in checking state
+        DispatchQueue.main.async {
+             self.isCheckingAuth = true
+        }
+        
+        authStateHandler = Auth.auth().addStateDidChangeListener { [weak self] (auth, user) in
+            guard let self = self else { return }
+            DispatchQueue.main.async { // Ensure UI updates happen on main thread
+                print("Auth State Changed: User is \(user == nil ? "nil" : "logged in")")
+                if let user = user {
+                    // User is signed in. Now it's safe to try loading credentials.
+                    print("User authenticated (UID: \(user.uid)). Attempting to load Firestore credentials...")
+                    self.loadCredentialsFromFirestore() // <-- Load credentials ONLY when user is confirmed
+                } else {
+                    // No user is signed in.
+                    print("No authenticated user. Clearing local state.")
+                    self.isCheckingAuth = false // Finished checking (no user)
+                    self.clearAuthenticationLocally()
+                    // Optionally clear Firestore here if you want logout to always clear it
+                    // self.clearCredentialsFromFirestore()
+                }
+            }
+        }
     }
 
     // --- Firestore Credential Management ---
@@ -86,12 +124,23 @@ class JellyfinService: ObservableObject {
     }
 
     private func loadCredentialsFromFirestore() {
-        // Start checking auth state
-        DispatchQueue.main.async {
-             self.isCheckingAuth = true
-        }
+        // isCheckingAuth is handled by the Auth listener now
+        // REMOVE: Dispatch... self.isCheckingAuth = true ...
         
-        db.collection("userSessions").document("currentUserSession").getDocument { (document, error) in
+        // Get the *current* Firebase Auth user ID. This MUST match who is logged in.
+        guard let currentFirebaseUserID = Auth.auth().currentUser?.uid else {
+            print("Error: loadCredentials called but no Firebase user is active. This shouldn't happen.")
+            DispatchQueue.main.async { self.isCheckingAuth = false }
+            return
+        }
+        print("Loading credentials for Firebase UID: \(currentFirebaseUserID)")
+        
+        // Consider changing the document ID to be user-specific
+        // let userDocRef = db.collection("userSessions").document(currentFirebaseUserID)
+        // For now, stick with currentUserSession, but ensure rules are correct
+        let userDocRef = db.collection("userSessions").document("currentUserSession")
+        
+        userDocRef.getDocument { (document, error) in
             DispatchQueue.main.async { // Ensure UI updates happen on main thread
                 self.isCheckingAuth = false // Finished checking
                 if let error = error {
@@ -200,8 +249,10 @@ class JellyfinService: ObservableObject {
                 self?.serverURL = serverURL.trimmingCharacters(in: CharacterSet(charactersIn: "/")) // Store cleaned URL
                 self?.errorMessage = nil
                 
-                // Save credentials on successful authentication
-                self?.saveCredentialsToFirestore() 
+                // Make sure to call saveCredentialsToFirestore() *after* Firebase Auth potentially signs in
+                // For now, assuming Jellyfin login doesn't also handle Firebase login directly
+                // We save Jellyfin credentials associated with the *currently logged-in* Firebase user
+                self?.saveCredentialsToFirestore()
                 
                 // Optionally trigger initial data fetch after login
                 // self?.fetchInitialData()
@@ -209,14 +260,15 @@ class JellyfinService: ObservableObject {
             .store(in: &cancellables)
     }
 
-    func logout() {
-        // 1. Clear credentials from Firestore
-        clearCredentialsFromFirestore { [weak self] in
-            // 2. Clear local authentication state AFTER Firestore clear completes (or fails)
-            DispatchQueue.main.async {
-                 self?.clearAuthenticationLocally()
-                 print("User logged out and local/Firestore state cleared.")
-            }
+    func signOut() {
+        print("Signing out...")
+        // Clear local state FIRST for snappy UI update
+        clearAuthenticationLocally()
+        // Then clear Firestore
+        clearCredentialsFromFirestore() { [weak self] in
+            // Optional: Sign out from Firebase Auth as well if linked
+            // try? Auth.auth().signOut()
+            // print("Firebase Auth sign out attempted.")
         }
     }
     
