@@ -16,9 +16,9 @@ enum TabItem: String, CaseIterable {
 
 struct BottomTabBar: View {
     @Binding var selectedTab: TabItem
-    let contentAreaHeight: CGFloat = 50 // Height for the actual icons/text area
-
+    
     var body: some View {
+        // Standard tab bar appearance
         HStack(spacing: 0) {
             ForEach(TabItem.allCases, id: \.self) { tab in
                 Button(action: {
@@ -28,7 +28,7 @@ struct BottomTabBar: View {
                 }) {
                     VStack(spacing: 4) {
                         Image(systemName: tab.icon)
-                            .font(.system(size: 22))
+                            .font(.system(size: 24))
                             .foregroundColor(selectedTab == tab ? .white : .gray)
                         
                         Text(tab.rawValue)
@@ -36,20 +36,29 @@ struct BottomTabBar: View {
                             .foregroundColor(selectedTab == tab ? .white : .gray)
                     }
                     .frame(maxWidth: .infinity)
-                    .frame(height: contentAreaHeight)
                 }
                 .accessibility(identifier: "tab_\(tab.rawValue)")
             }
         }
-        .frame(height: contentAreaHeight) // Set the fixed height for the content HStack
-        .background(BlurView(style: .systemMaterialDark)) // Apply background ONLY to the content area
+        .padding(.top, 8)
+        .padding(.bottom, 8)
+        .background(
+            Color.black.opacity(0.8)
+                .background(BlurView(style: .systemMaterialDark))
+        )
     }
 }
 
 struct BlurView: UIViewRepresentable {
     var style: UIBlurEffect.Style
-    func makeUIView(context: Context) -> UIVisualEffectView { UIVisualEffectView(effect: UIBlurEffect(style: style)) }
-    func updateUIView(_ uiView: UIVisualEffectView, context: Context) { uiView.effect = UIBlurEffect(style: style) }
+    
+    func makeUIView(context: Context) -> UIVisualEffectView {
+        return UIVisualEffectView(effect: UIBlurEffect(style: style))
+    }
+    
+    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {
+        uiView.effect = UIBlurEffect(style: style)
+    }
 }
 
 struct BottomTabBar_Previews: PreviewProvider {
@@ -57,10 +66,8 @@ struct BottomTabBar_Previews: PreviewProvider {
         VStack {
             Spacer()
             BottomTabBar(selectedTab: .constant(.home))
-                 // Preview container simulates safe area
-                .padding(.bottom, 34)
         }
-        .background(Color.gray)
+        .background(Color.black)
         .edgesIgnoringSafeArea(.all)
         .preferredColorScheme(.dark)
     }
