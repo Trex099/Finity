@@ -16,10 +16,10 @@ enum TabItem: String, CaseIterable {
 
 struct BottomTabBar: View {
     @Binding var selectedTab: TabItem
-    let barContentHeight: CGFloat = 55 // Fixed height for the icons/text area
+    let barContentHeight: CGFloat = 55 // Height for the actual icons/text area
 
     var body: some View {
-        // HStack contains the buttons
+        // HStack contains the buttons - NO background or complex framing here
         HStack(spacing: 0) {
             ForEach(TabItem.allCases, id: \.self) { tab in
                 Button(action: {
@@ -36,16 +36,29 @@ struct BottomTabBar: View {
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(selectedTab == tab ? .white : .gray)
                     }
-                    // Ensure button content is centered and takes full width/height of the bar content area
                     .frame(maxWidth: .infinity)
+                    // Content VStack is centered within this height
                     .frame(height: barContentHeight)
                 }
                 .accessibility(identifier: "tab_\(tab.rawValue)")
             }
         }
-        .frame(height: barContentHeight) // Set the fixed height for the content
-        .background(BlurView(style: .systemMaterialDark)) // Apply background to the content area
-        // Safe area padding will be applied by the container view
+        // The HStack itself only defines the content area height
+        .frame(height: barContentHeight)
+        // Background and safe area padding are handled by the container
+    }
+}
+
+// Keep BlurView definition if needed elsewhere, or remove if only used here
+struct BlurView: UIViewRepresentable {
+    var style: UIBlurEffect.Style
+
+    func makeUIView(context: Context) -> UIVisualEffectView {
+        return UIVisualEffectView(effect: UIBlurEffect(style: style))
+    }
+
+    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {
+        uiView.effect = UIBlurEffect(style: style)
     }
 }
 
@@ -53,9 +66,10 @@ struct BottomTabBar_Previews: PreviewProvider {
     static var previews: some View {
         VStack {
             Spacer()
+            // Preview the bar itself, padding applied in container
             BottomTabBar(selectedTab: .constant(.home))
-                // Simulate safe area in preview
-                .padding(.bottom, 34)
+                .background(BlurView(style: .systemMaterialDark)) // Add background for preview
+                .padding(.bottom, 34) // Simulate safe area padding
         }
         .background(Color.gray)
         .edgesIgnoringSafeArea(.bottom)
