@@ -1,14 +1,18 @@
 import SwiftUI
 
 struct LoginView: View {
+    // Observe the shared JellyfinService instance
+    @ObservedObject var jellyfinService: JellyfinService
+    
     @State private var serverURL = ""
     @State private var username = ""
     @State private var password = ""
-    @State private var isLoading = false
-    @State private var errorMessage: String?
+    // isLoading and errorMessage are now sourced from jellyfinService
+    // @State private var isLoading = false
+    // @State private var errorMessage: String?
 
-    // Placeholder for authentication logic - will connect to JellyfinService later
-    var onAuthenticated: () -> Void
+    // Remove the callback, authentication state is handled by observing jellyfinService
+    // var onAuthenticated: () -> Void
 
     var body: some View {
         NavigationView { // Use NavigationView for the title
@@ -42,6 +46,12 @@ struct LoginView: View {
                             .autocapitalization(.none)
                             .disableAutocorrection(true)
                             .keyboardType(.URL)
+                            // Prefill from service if available (e.g., loaded from Keychain)
+                            .onAppear {
+                                if let savedURL = jellyfinService.serverURL {
+                                    serverURL = savedURL
+                                }
+                            }
                     }
 
                     // Username Input
@@ -64,8 +74,8 @@ struct LoginView: View {
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                     }
 
-                    // Error Message Display
-                    if let error = errorMessage {
+                    // Error Message Display (from service)
+                    if let error = jellyfinService.errorMessage {
                         Text(error)
                             .foregroundColor(.red)
                             .font(.caption)
@@ -77,9 +87,10 @@ struct LoginView: View {
                     Button(action: performLogin) {
                         HStack {
                             Spacer()
-                            if isLoading {
+                            // Use isLoading from service
+                            if jellyfinService.isLoading {
                                 ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .black)) // Dark tint for contrast
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .black))
                             } else {
                                 Text("Connect")
                                     .fontWeight(.bold)
@@ -91,8 +102,9 @@ struct LoginView: View {
                         .foregroundColor(.black)
                         .cornerRadius(8)
                     }
-                    .disabled(isLoading || serverURL.isEmpty || username.isEmpty || password.isEmpty)
-                    .opacity((isLoading || serverURL.isEmpty || username.isEmpty || password.isEmpty) ? 0.6 : 1.0) // Indicate disabled state
+                    // Disable based on service state and input fields
+                    .disabled(jellyfinService.isLoading || serverURL.isEmpty || username.isEmpty || password.isEmpty)
+                    .opacity((jellyfinService.isLoading || serverURL.isEmpty || username.isEmpty || password.isEmpty) ? 0.6 : 1.0)
                     .padding(.top, 20)
 
                     Spacer()
@@ -106,37 +118,39 @@ struct LoginView: View {
     }
 
     func performLogin() {
-        isLoading = true
-        errorMessage = nil
-        print("Attempting login with URL: \(serverURL), User: \(username)")
-
-        // ** TODO: **
-        // 1. Validate Server URL format (basic check)
-        // 2. Instantiate or access JellyfinService
-        // 3. Call JellyfinService.authenticate(url: serverURL, username: username, password: password)
-        // 4. Handle success: Save credentials/token securely, call onAuthenticated()
-        // 5. Handle failure: Set errorMessage
-
-        // Placeholder logic for now
+        // No need to manage isLoading or errorMessage locally
+        // isLoading = true
+        // errorMessage = nil
+        print("Attempting login via JellyfinService with URL: \(serverURL), User: \(username)")
+        
+        // Call the authentication method on the service
+        jellyfinService.authenticate(serverURL: serverURL, username: username, password: password)
+        
+        // The service will publish changes to isLoading, errorMessage, and isAuthenticated,
+        // which will automatically update this view and ContentView.
+        
+        // Remove placeholder logic
+        /*
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            // Simulate success/failure
-            let success = true // Change to false to test error
+            let success = true
             if success {
                 print("Login Successful (Placeholder)")
                 // Securely store credentials/token here (e.g., Keychain)
-                onAuthenticated()
+                // onAuthenticated()
             } else {
                 print("Login Failed (Placeholder)")
                 errorMessage = "Could not connect to server. Check URL, username, and password."
             }
             isLoading = false
         }
+        */
     }
 }
 
 // Preview Provider
 struct LoginView_Previews: PreviewProvider {
     static var previews: some View {
-        LoginView(onAuthenticated: { print("Authenticated!") })
+        // Provide a mock service for the preview
+        LoginView(jellyfinService: JellyfinService())
     }
 } 

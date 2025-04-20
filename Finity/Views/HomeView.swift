@@ -1,40 +1,31 @@
 import SwiftUI
 
 struct HomeView: View {
-    @StateObject private var jellyfinService = JellyfinService(
-        baseURL: "https://your-jellyfin-server.com",
-        apiKey: "your-api-key"
-    )
+    // Access the shared JellyfinService from the environment
+    @EnvironmentObject var jellyfinService: JellyfinService 
+    
+    // State to hold fetched media items
+    @State private var featuredItems: [MediaItem] = [] // For the banner
+    @State private var recentlyAddedItems: [MediaItem] = [] // Example category
+    // TODO: Add state for other categories like Continue Watching
+    
     @State private var selectedItemForDetail: MediaItem? // State for detail view presentation
     @State private var showPlayer = false
     @Binding var showSearchView: Bool // Binding from ContentNavigationView
     
-    // Computed property for temporary movie data
+    // REMOVE the hardcoded tempMovies
+    /*
     private var tempMovies: [MediaItem] {
-        return [
-            MediaItem(id: "1", title: "Inception", posterPath: "inception", type: .movie, year: "2010", rating: 8.8, overview: "A thief who enters the dreams of others to steal secrets from their subconscious."),
-            MediaItem(id: "2", title: "The Dark Knight", posterPath: "darkknight", type: .movie, year: "2008", rating: 9.0, overview: "When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice."),
-            MediaItem(id: "3", title: "Interstellar", posterPath: "inception", type: .movie, year: "2014", rating: 8.6, overview: "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival."),
-            MediaItem(id: "4", title: "The Matrix", posterPath: "darkknight", type: .movie, year: "1999", rating: 8.7, overview: "A computer hacker learns from mysterious rebels about the true nature of his reality and his role in the war against its controllers."),
-            MediaItem(id: "5", title: "Avengers: Endgame", posterPath: "inception", type: .movie, year: "2019", rating: 8.4, overview: "After the devastating events of Avengers: Infinity War (2018), the universe is in ruins. With the help of remaining allies, the Avengers assemble once more in order to reverse Thanos' actions and restore balance to the universe."),
-            MediaItem(id: "6", title: "Pulp Fiction", posterPath: "darkknight", type: .movie, year: "1994", rating: 8.9, overview: "The lives of two mob hitmen, a boxer, a gangster and his wife, and a pair of diner bandits intertwine in four tales of violence and redemption."),
-            MediaItem(id: "7", title: "Forrest Gump", posterPath: "inception", type: .movie, year: "1994", rating: 8.8, overview: "The presidencies of Kennedy and Johnson, the Vietnam War, the Watergate scandal and other historical events unfold from the perspective of an Alabama man with an IQ of 75, whose only desire is to be reunited with his childhood sweetheart."),
-            MediaItem(id: "8", title: "Gladiator", posterPath: "darkknight", type: .movie, year: "2000", rating: 8.5, overview: "A former Roman General sets out to exact vengeance against the corrupt emperor who murdered his family and sent him into slavery.")
-        ]
+        // ... removed hardcoded data ...
     }
-    
-    // Computed property for categories
+    */
+   
+    // REMOVE the hardcoded categories
+    /*
     private var categories: [String] {
-        return [
-            "Recently Added",
-            "Action Movies",
-            "Popular Titles",
-            "Trending Now",
-            "Sci-Fi Classics",
-            "Award Winners",
-            "Critically Acclaimed"
-        ]
+        // ... removed hardcoded data ...
     }
+    */
     
     var body: some View {
         GeometryReader { geometry in
@@ -47,27 +38,39 @@ struct HomeView: View {
                 // Scrollable content below the title bar
                 ScrollView {
                     VStack(spacing: 0) {
-                        // Featured content
-                        if let firstMovie = tempMovies.first { // Safely unwrap first item
-                            FeaturedContentView(item: firstMovie)
+                        // Featured content - Use fetched data
+                        // TODO: Replace with FeaturedBannerCarouselView
+                        if let firstFeatured = featuredItems.first { // Use fetched items
+                            FeaturedContentView(item: firstFeatured)
                                 .onTapGesture {
-                                    selectedItemForDetail = firstMovie
+                                    selectedItemForDetail = firstFeatured
                                 }
                                 .accessibility(identifier: "featured_content")
                                 .padding(.top, 8)
+                        } else {
+                            // Placeholder while loading or if empty
+                            Rectangle() // Or ProgressView()
+                                .fill(Color.gray.opacity(0.1))
+                                .frame(height: geometry.size.width * 0.8) // Approx height for banner
+                                .padding(.top, 8)
                         }
                         
-                        // Content rows
-                        ForEach(categories.indices, id: \.self) { index in
-                            // Create a subset of movies for each category
-                            let startIndex = index % tempMovies.count
-                            let rowItems = Array(0..<5).map { i in
-                                tempMovies[(startIndex + i) % tempMovies.count]
-                            }
-                            let row = MediaRow(title: categories[index], items: rowItems)
-                            MediaRowView(row: row, selectedItem: $selectedItemForDetail)
-                                .accessibility(identifier: "media_row_\(index)")
+                        // TODO: Replace with dynamic rows fetched from Jellyfin
+                        // Example: Recently Added Row
+                        if !recentlyAddedItems.isEmpty {
+                           let row = MediaRow(title: "Recently Added", items: recentlyAddedItems)
+                           MediaRowView(row: row, selectedItem: $selectedItemForDetail)
+                                .accessibility(identifier: "media_row_recently_added")
                         }
+
+                        // TODO: Add Continue Watching Row
+                        
+                        // Remove hardcoded category loops
+                        /*
+                        ForEach(categories.indices, id: \.self) { index in
+                            // ... removed loop using tempMovies ...
+                        }
+                        */
                         
                         // Add extra space for bottom tab bar
                         Spacer(minLength: geometry.safeAreaInsets.bottom + 70)
@@ -76,32 +79,65 @@ struct HomeView: View {
             }
             .edgesIgnoringSafeArea(.top)
             .background(Color.black)
-            .sheet(item: $selectedItemForDetail) { item in // Present Detail View
+            .sheet(item: $selectedItemForDetail) { item in // Present Detail View (Will change later)
                  MediaDetailView(item: item)
                     .preferredColorScheme(.dark)
             }
             .fullScreenCover(isPresented: $showPlayer, content: {
-                // Keep player presentation if needed
                 if let item = selectedItemForDetail { 
-                     MediaPlayerView(item: item)
+                     MediaPlayerView(item: item) // Will need enhancement
                 }
             })
+            // Fetch data when the view appears
+            .onAppear(perform: loadData)
+        }
+    }
+    
+    // Function to load data from JellyfinService
+    private func loadData() {
+        print("HomeView appearing. Loading data...")
+        // TODO: Implement actual fetching in JellyfinService and update state here
+        // jellyfinService.fetchLatestMedia()
+        // jellyfinService.fetchRecentlyAdded()
+        // jellyfinService.fetchContinueWatching()
+        
+        // For now, simulate fetching placeholder data after a delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+             // Use the existing MediaItem structure for now
+             // We need to define a proper Codable struct mapping to Jellyfin API later
+            self.featuredItems = [
+                MediaItem(id: "jf1", title: "Jellyfin Feature 1", posterPath: "inception", type: .movie, year: "2024", rating: 8.0, overview: "Fetched from Jellyfin (simulated)."),
+                MediaItem(id: "jf2", title: "Jellyfin Feature 2", posterPath: "darkknight", type: .movie, year: "2023", rating: 7.5, overview: "Another item from the server.")
+                // Add more up to 6 for the banner later
+            ]
+            self.recentlyAddedItems = [
+                 MediaItem(id: "jf3", title: "Recent Movie", posterPath: "inception", type: .movie, year: "2024", rating: 8.8, overview: "Recently added movie."),
+                 MediaItem(id: "jf4", title: "Recent Show", posterPath: "darkknight", type: .tvShow, year: "2024", rating: 9.0, overview: "Recently added TV show.")
+            ]
+            print("Simulated data loaded.")
         }
     }
 }
 
+// Preview needs adjustment - requires EnvironmentObject
+/*
 struct HomeView_Previews: PreviewProvider {
     static var previews: some View {
         @State var showSearch = false
         
+        // Preview will fail without EnvironmentObject
+        // Need to provide a mock JellyfinService
         Group {
             HomeView(showSearchView: $showSearch)
                 .preferredColorScheme(.dark)
                 .previewDevice("iPhone 13 Pro")
+                // .environmentObject(MockJellyfinService()) // Example
             
             HomeView(showSearchView: $showSearch)
                 .preferredColorScheme(.dark)
                 .previewDevice("iPhone SE (3rd generation)")
+                 // .environmentObject(MockJellyfinService()) // Example
         }
     }
 } 
+*/ 
