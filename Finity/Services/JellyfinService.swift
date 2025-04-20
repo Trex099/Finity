@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import UIKit
 
 // Basic structure for Jellyfin Authentication Response
 struct AuthenticationResponse: Codable {
@@ -280,7 +281,7 @@ class JellyfinService: ObservableObject {
               let errorText = String(data: output.data, encoding: .utf8) ?? "Unknown API error (Status: \(httpResponse.statusCode))"
               print("API Error Body: \(errorText)")
               // Include status code in the error userInfo
-              var userInfo = [NSLocalizedDescriptionKey: errorText]
+              var userInfo: [String: Any] = [NSLocalizedDescriptionKey: errorText]
               userInfo[NSURLErrorKey] = httpResponse.statusCode
               throw URLError(.init(rawValue: httpResponse.statusCode), userInfo: userInfo)
          }
