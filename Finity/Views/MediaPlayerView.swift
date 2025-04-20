@@ -216,19 +216,37 @@ struct CustomPlayerControlsView: View {
                 
                 Spacer() // Push controls to center and bottom
                 
-                // Middle Controls (Play/Pause)
-                HStack {
-                    // Placeholder for Rewind 10s (Future)
-                    Spacer()
+                // Middle Controls (Seek, Play/Pause, Seek)
+                HStack(spacing: 50) { // Adjust spacing as needed
+                    // Rewind 10s Button
+                    Button {
+                        let seekTime = max(currentTime - 10, 0) // Prevent seeking before 0
+                        onSeek(seekTime)
+                    } label: {
+                        Image(systemName: "gobackward.10")
+                            .font(.system(size: 35))
+                            .foregroundColor(.white)
+                    }
+                    .accessibility(identifier: "seek_backward_10")
                     
+                    // Play/Pause Button
                     Button(action: onPlayPause) {
                         Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                             .font(.system(size: 50))
                             .foregroundColor(.white)
                     }
+                    .accessibility(identifier: "play_pause_button")
                     
-                    Spacer()
-                    // Placeholder for Forward 10s (Future)
+                    // Forward 10s Button
+                    Button {
+                        let seekTime = min(currentTime + 10, totalDuration) // Prevent seeking beyond duration
+                        onSeek(seekTime)
+                    } label: {
+                        Image(systemName: "goforward.10")
+                            .font(.system(size: 35))
+                            .foregroundColor(.white)
+                    }
+                    .accessibility(identifier: "seek_forward_10")
                 }
                 .padding(.bottom, 30) // Space above slider
 
