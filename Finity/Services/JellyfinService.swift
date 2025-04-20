@@ -187,6 +187,26 @@ class JellyfinService: ObservableObject {
              .store(in: &cancellables)
      }
 
+    // MARK: - Playback
+    
+    func getVideoStreamURL(itemId: String) -> URL? {
+        guard isAuthenticated, let serverURL = serverURL, let accessToken = accessToken else {
+            print("Error: Cannot get stream URL, not authenticated.")
+            return nil
+        }
+        
+        // Construct the streaming URL. Note: This doesn't require extra headers usually,
+        // as the access token might be passed as a query parameter if needed by server config,
+        // but often the established session cookie handles it. Check Jellyfin docs if auth fails.
+        // Let's assume direct URL works for now.
+        let urlString = "\(serverURL)/Videos/\(itemId)/stream?static=true" // Add static=true if needed, helps with seeking sometimes
+        
+        // Optionally add api_key or token if direct streaming needs it (less common)
+        // urlString += "&api_key=\(accessToken)"
+        
+        return URL(string: urlString)
+    }
+
     // MARK: - Request Building & Handling Helpers
 
     private func buildAuthenticatedRequest(endpoint: String, method: String = "GET", params: [String: String]? = nil) -> URLRequest? {
