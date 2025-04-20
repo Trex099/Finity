@@ -149,7 +149,7 @@ class JellyfinService: ObservableObject {
              "Filters": "IsResumable",
              "Limit": "\(limit)",
              "Recursive": "true",
-             "Fields": "PrimaryImageAspectRatio,UserData,ParentId", // ParentId helps show Series name for episodes
+             "Fields": "PrimaryImageAspectRatio,UserData,ParentId,RunTimeTicks", // Add RunTimeTicks
              "ImageTypeLimit": "1"
          ]) else { return }
          
@@ -170,7 +170,10 @@ class JellyfinService: ObservableObject {
      }
      
      func fetchItemDetails(itemID: String) {
-         guard let request = buildAuthenticatedRequest(endpoint: "/Users/\(userID!)/Items/\(itemID)") else { return }
+         // Add Fields parameter to get necessary data like RunTimeTicks and UserData
+         guard let request = buildAuthenticatedRequest(endpoint: "/Users/\(userID!)/Items/\(itemID)", params: [
+            "Fields": "PrimaryImageAspectRatio,UserData,Overview,Genres,RunTimeTicks" // Add fields needed by detail view
+         ]) else { return }
          
          isLoadingData = true
          URLSession.shared.dataTaskPublisher(for: request)

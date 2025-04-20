@@ -12,9 +12,10 @@ struct MediaItem: Identifiable, Codable, Hashable {
     let officialRating: String? // e.g., "PG-13"
     let imageTags: [String: String]? // Contains keys like "Primary", value is the tag
     let backdropImageTags: [String]? // Array of tags for backdrops
-    let userData: UserData? // User-specific data like played status, progress
+    var userData: UserData? // Make mutable for optimistic updates
     let genres: [String]? // List of genres
-    // Add other relevant fields as needed: People (cast), Studios, RunTimeTicks etc.
+    let runTimeTicks: Int? // Add runtime ticks
+    // Add other relevant fields as needed: People (cast), Studios etc.
     
     // Conformance to Identifiable using Jellyfin's ID
     var identifier: String { id }
@@ -42,6 +43,7 @@ struct MediaItem: Identifiable, Codable, Hashable {
         case backdropImageTags = "BackdropImageTags"
         case userData = "UserData"
         case genres = "Genres"
+        case runTimeTicks = "RunTimeTicks"
         // Map other fields if added
     }
     
@@ -55,7 +57,7 @@ struct MediaItem: Identifiable, Codable, Hashable {
 struct UserData: Codable, Hashable {
     let playbackPositionTicks: Int?
     let playCount: Int?
-    let isFavorite: Bool?
+    var isFavorite: Bool? // Make mutable for optimistic updates
     let played: Bool?
     let playedPercentage: Double?
 
