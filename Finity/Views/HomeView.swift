@@ -48,64 +48,8 @@ struct HomeView: View {
                          ProgressView().scaleEffect(1.5)
                          Spacer()
                     } else {
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 0) { // Align sections to leading
-                                // Banner uses latestItems from service
-                                FeaturedBannerCarouselView(
-                                    items: featuredItems, // Use local state updated via onReceive
-                                    onItemSelected: { item in
-                                        selectedItemForNavigation = item 
-                                    },
-                                    onPlaySelected: { item in
-                                        selectedItemForNavigation = item
-                                        showPlayer = true
-                                    }
-                                )
-                                .padding(.bottom, 20)
-                                
-                                // --- Continue Watching Section --- 
-                                if !continueWatchingItems.isEmpty {
-                                    Text("Continue Watching")
-                                        .font(.title2).bold()
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal)
-                                        .padding(.top, 10)
-                                    
-                                    ScrollView(.horizontal, showsIndicators: false) {
-                                        LazyHStack(spacing: 15) {
-                                            ForEach(continueWatchingItems) { item in
-                                                ContinueWatchingCard(item: item)
-                                                     .onTapGesture {
-                                                         // Navigate to details or player?
-                                                         // Let's navigate to details for now
-                                                         selectedItemForNavigation = item
-                                                     }
-                                                     .accessibility(identifier: "continue_watching_\(item.id)")
-                                            }
-                                        }
-                                        .padding(.horizontal)
-                                        .padding(.vertical, 8)
-                                    }
-                                    .padding(.bottom, 20)
-                                }
-                                
-                                // --- Recently Added Section (Placeholder/Future) ---
-                                if !recentlyAddedItems.isEmpty {
-                                    Text("Recently Added")
-                                        .font(.title2).bold()
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal)
-                                    
-                                    // Existing MediaRowView might need updates for new MediaItem structure
-                                    let row = MediaRow(title: "", items: recentlyAddedItems) // Title is now a separate Text view
-                                    MediaRowView(row: row, selectedItem: $selectedItemForNavigation)
-                                         .accessibility(identifier: "media_row_recently_added")
-                                         .padding(.bottom, 20)
-                                }
-                                
-                                Spacer(minLength: geometry.safeAreaInsets.bottom + 70)
-                            }
-                        }
+                        // Extracted ScrollView content
+                        contentScrollView
                     }
                 }
                 .edgesIgnoringSafeArea(.top)
@@ -143,6 +87,75 @@ struct HomeView: View {
             }
         }
     }
+    
+    // MARK: - Computed Views
+    
+    // Extracted main content ScrollView
+    @ViewBuilder // Use ViewBuilder for potential conditional content inside
+    private var contentScrollView: some View {
+        // Note: GeometryReader context is lost here. If needed, pass size down.
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) { // Align sections to leading
+                // Banner uses latestItems from service
+                FeaturedBannerCarouselView(
+                    items: featuredItems, // Use local state updated via onReceive
+                    onItemSelected: { item in
+                        selectedItemForNavigation = item 
+                    },
+                    onPlaySelected: { item in
+                        selectedItemForNavigation = item
+                        showPlayer = true
+                    }
+                )
+                .padding(.bottom, 20)
+                
+                // --- Continue Watching Section --- 
+                if !continueWatchingItems.isEmpty {
+                    Text("Continue Watching")
+                        .font(.title2).bold()
+                        .foregroundColor(.white)
+                        .padding(.horizontal)
+                        .padding(.top, 10)
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        LazyHStack(spacing: 15) {
+                            ForEach(continueWatchingItems) { item in
+                                ContinueWatchingCard(item: item)
+                                     .onTapGesture {
+                                         // Navigate to details or player?
+                                         // Let's navigate to details for now
+                                         selectedItemForNavigation = item
+                                     }
+                                     .accessibility(identifier: "continue_watching_\(item.id)")
+                            }
+                        }
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                    }
+                    .padding(.bottom, 20)
+                }
+                
+                // --- Recently Added Section (Placeholder/Future) ---
+                if !recentlyAddedItems.isEmpty {
+                    Text("Recently Added")
+                        .font(.title2).bold()
+                        .foregroundColor(.white)
+                        .padding(.horizontal)
+                    
+                    // Existing MediaRowView might need updates for new MediaItem structure
+                    let row = MediaRow(title: "", items: recentlyAddedItems) // Title is now a separate Text view
+                    MediaRowView(row: row) // Removed selectedItem
+                         .accessibility(identifier: "media_row_recently_added")
+                         .padding(.bottom, 20)
+                }
+                
+                // Use a fixed spacer or pass geometry size if needed
+                Spacer(minLength: 100) // Adjust as needed, geometry.safeAreaInsets is not available here
+            }
+        }
+    }
+
+    // MARK: - Setup & Data Loading
     
     // Setup subscriptions and load initial data
     private func setupView() {
