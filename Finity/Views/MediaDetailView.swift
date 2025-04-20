@@ -171,7 +171,7 @@ struct MediaDetailView: View {
                                 .padding(.horizontal, min(20, geometry.size.width * 0.05))
                                 .padding(.bottom, 12)
                             
-                            MediaRowView(row: MediaRow(title: "", items: relatedItems), selectedItem: .constant(nil)) // Needs update if row uses new item struct
+                            MediaRowView(row: MediaRow(title: "", items: relatedItems)) // Remove selectedItem argument
                         }
                         .padding(.bottom, 24)
                     }

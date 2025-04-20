@@ -120,7 +120,13 @@ class JellyfinService: ObservableObject {
     // MARK: - Data Fetching
     
     func fetchLatestMedia(limit: Int = 10) {
-        guard let request = buildAuthenticatedRequest(endpoint: "/Users/\(userID!)/Items/Latest", params: [
+        // Safely unwrap userID
+        guard let currentUserID = userID else {
+            print("Error: Cannot fetch latest media, missing userID.")
+            return
+        }
+        
+        guard let request = buildAuthenticatedRequest(endpoint: "/Users/\(currentUserID)/Items/Latest", params: [
             "Limit": "\(limit)",
             "IncludeItemTypes": "Movie,Series", // Fetch both for banner variety
             "Fields": "PrimaryImageAspectRatio,UserData,Overview,Genres",
@@ -143,7 +149,13 @@ class JellyfinService: ObservableObject {
     }
     
      func fetchContinueWatching(limit: Int = 10) {
-        guard let request = buildAuthenticatedRequest(endpoint: "/Users/\(userID!)/Items", params: [
+        // Safely unwrap userID
+        guard let currentUserID = userID else {
+            print("Error: Cannot fetch continue watching, missing userID.")
+            return
+        }
+        
+        guard let request = buildAuthenticatedRequest(endpoint: "/Users/\(currentUserID)/Items", params: [
              "SortBy": "DatePlayed",
              "SortOrder": "Descending",
              "IncludeItemTypes": "Movie,Episode", // Typically only Movies and Episodes are resumable
@@ -171,8 +183,14 @@ class JellyfinService: ObservableObject {
      }
      
      func fetchItemDetails(itemID: String) {
+        // Safely unwrap userID
+        guard let currentUserID = userID else {
+            print("Error: Cannot fetch item details, missing userID.")
+            return
+        }
+        
          // Add Fields parameter to get necessary data like RunTimeTicks and UserData
-         guard let request = buildAuthenticatedRequest(endpoint: "/Users/\(userID!)/Items/\(itemID)", params: [
+         guard let request = buildAuthenticatedRequest(endpoint: "/Users/\(currentUserID)/Items/\(itemID)", params: [
             "Fields": "PrimaryImageAspectRatio,UserData,Overview,Genres,RunTimeTicks" // Add fields needed by detail view
          ]) else { return }
          
@@ -194,7 +212,13 @@ class JellyfinService: ObservableObject {
     // MARK: - User Actions (Mark Favorite/Watched etc.)
     
     func toggleFavorite(itemId: String, currentStatus: Bool) {
-        guard let request = buildAuthenticatedRequest(endpoint: "/Users/\(userID!)/FavoriteItems/\(itemId)", method: currentStatus ? "DELETE" : "POST") else { return }
+        // Safely unwrap userID
+        guard let currentUserID = userID else {
+            print("Error: Cannot toggle favorite, missing userID.")
+            return
+        }
+        
+        guard let request = buildAuthenticatedRequest(endpoint: "/Users/\(currentUserID)/FavoriteItems/\(itemId)", method: currentStatus ? "DELETE" : "POST") else { return }
         
         // We don't expect a meaningful body back, just check status code
         URLSession.shared.dataTaskPublisher(for: request)
