@@ -108,24 +108,23 @@ class JellyfinService: ObservableObject {
                     return
                 }
 
-                if let document = document, document.exists {
-                    do {
-                        if let credentials = try document.data(as: UserCredentials?.self) {
-                            print("Credentials loaded from Firestore for user: \(credentials.userID)")
-                            self.serverURL = credentials.serverURL
-                            self.userID = credentials.userID
-                            self.accessToken = credentials.accessToken
-                            self.isAuthenticated = true
-                            self.errorMessage = nil
-                            
-                            // Optionally, trigger data fetches now that we are authenticated
-                            // self.fetchInitialData() // You might create a helper function for this
-                        } else {
-                            print("No credentials found in Firestore document or failed to decode.")
-                            self.clearAuthenticationLocally()
-                        }
-                    } catch let error {
-                        print("Error decoding credentials from Firestore: \(error.localizedDescription)")
+                if let document = document, document.exists, let data = document.data() {
+                    // Extract values from dictionary instead of using Codable
+                    if let serverURL = data["serverURL"] as? String,
+                       let userID = data["userID"] as? String,
+                       let accessToken = data["accessToken"] as? String {
+                        
+                        print("Credentials loaded from Firestore for user: \(userID)")
+                        self.serverURL = serverURL
+                        self.userID = userID
+                        self.accessToken = accessToken
+                        self.isAuthenticated = true
+                        self.errorMessage = nil
+                        
+                        // Optionally, trigger data fetches now that we are authenticated
+                        // self.fetchInitialData() // You might create a helper function for this
+                    } else {
+                        print("Invalid credentials data format in Firestore document.")
                         self.clearAuthenticationLocally()
                     }
                 } else {
