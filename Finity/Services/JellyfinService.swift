@@ -32,13 +32,6 @@ struct SessionInfo: Codable {
     // Add relevant fields if needed
 }
 
-// Define Codable struct for Firestore
-struct UserCredentials: Codable {
-    let serverURL: String
-    let userID: String
-    let accessToken: String
-}
-
 class JellyfinService: ObservableObject {
     // Authentication State
     @Published var isAuthenticated = false
