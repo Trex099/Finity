@@ -1,17 +1,22 @@
 import SwiftUI
+import Combine
 
 struct HomeView: View {
     // Access the shared JellyfinService from the environment
     @EnvironmentObject var jellyfinService: JellyfinService 
     
-    // State to hold fetched media items
-    @State private var featuredItems: [MediaItem] = [] // For the banner
-    @State private var recentlyAddedItems: [MediaItem] = [] // Example category
-    // TODO: Add state for other categories like Continue Watching
+    // Local state mirroring the service's published data
+    @State private var featuredItems: [MediaItem] = [] 
+    @State private var continueWatchingItems: [MediaItem] = []
+    // Keep recentlyAddedItems for now, though fetching logic isn't implemented yet
+    @State private var recentlyAddedItems: [MediaItem] = [] 
     
-    @State private var selectedItemForNavigation: MediaItem? = nil // For NavigationLink value
+    @State private var selectedItemForNavigation: MediaItem? = nil
     @State private var showPlayer = false
     @Binding var showSearchView: Bool // Binding from ContentNavigationView
+    
+    // Store subscriptions to update local state from service
+    @State private var cancellables = Set<AnyCancellable>()
     
     // REMOVE the hardcoded tempMovies
     /*
@@ -37,46 +42,69 @@ struct HomeView: View {
                         .padding(.top, geometry.safeAreaInsets.top)
                         .background(Color.black.edgesIgnoringSafeArea(.top))
                     
-                    // Scrollable content below the title bar
-                    ScrollView {
-                        VStack(spacing: 0) {
-                            // Featured content - Use fetched data
-                            FeaturedBannerCarouselView(
-                                items: featuredItems,
-                                onItemSelected: { item in
-                                    // Set the item to trigger navigation via .navigationDestination
-                                    print("Navigation triggered for: \(item.title)")
-                                    selectedItemForNavigation = item 
-                                },
-                                onPlaySelected: { item in
-                                    // Action for Play button
-                                    print("Play selected for: \(item.title)")
-                                    selectedItemForNavigation = item // Also set for player context if needed
-                                    showPlayer = true
+                    // Show loading indicator over the whole scroll view if loading initial data
+                    if jellyfinService.isLoadingData && featuredItems.isEmpty && continueWatchingItems.isEmpty {
+                         Spacer()
+                         ProgressView().scaleEffect(1.5)
+                         Spacer()
+                    } else {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 0) { // Align sections to leading
+                                // Banner uses latestItems from service
+                                FeaturedBannerCarouselView(
+                                    items: featuredItems, // Use local state updated via onReceive
+                                    onItemSelected: { item in
+                                        selectedItemForNavigation = item 
+                                    },
+                                    onPlaySelected: { item in
+                                        selectedItemForNavigation = item
+                                        showPlayer = true
+                                    }
+                                )
+                                .padding(.bottom, 20)
+                                
+                                // --- Continue Watching Section --- 
+                                if !continueWatchingItems.isEmpty {
+                                    Text("Continue Watching")
+                                        .font(.title2).bold()
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal)
+                                        .padding(.top, 10)
+                                    
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        LazyHStack(spacing: 15) {
+                                            ForEach(continueWatchingItems) { item in
+                                                ContinueWatchingCard(item: item)
+                                                     .onTapGesture {
+                                                         // Navigate to details or player?
+                                                         // Let's navigate to details for now
+                                                         selectedItemForNavigation = item
+                                                     }
+                                                     .accessibility(identifier: "continue_watching_\(item.id)")
+                                            }
+                                        }
+                                        .padding(.horizontal)
+                                        .padding(.vertical, 8)
+                                    }
+                                    .padding(.bottom, 20)
                                 }
-                            )
-                            .padding(.bottom, 20) // Add some space below the banner
-                            
-                            // TODO: Replace with dynamic rows fetched from Jellyfin
-                            // Example: Recently Added Row
-                            if !recentlyAddedItems.isEmpty {
-                               let row = MediaRow(title: "Recently Added", items: recentlyAddedItems)
-                               // TODO: Modify MediaRowView to use NavigationLink or pass selection up
-                               MediaRowView(row: row, selectedItem: $selectedItemForNavigation)
-                                    .accessibility(identifier: "media_row_recently_added")
+                                
+                                // --- Recently Added Section (Placeholder/Future) ---
+                                if !recentlyAddedItems.isEmpty {
+                                    Text("Recently Added")
+                                        .font(.title2).bold()
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal)
+                                    
+                                    // Existing MediaRowView might need updates for new MediaItem structure
+                                    let row = MediaRow(title: "", items: recentlyAddedItems) // Title is now a separate Text view
+                                    MediaRowView(row: row, selectedItem: $selectedItemForNavigation)
+                                         .accessibility(identifier: "media_row_recently_added")
+                                         .padding(.bottom, 20)
+                                }
+                                
+                                Spacer(minLength: geometry.safeAreaInsets.bottom + 70)
                             }
-
-                            // TODO: Add Continue Watching Row
-                            
-                            // Remove hardcoded category loops
-                            /*
-                            ForEach(categories.indices, id: \.self) { index in
-                                // ... removed loop using tempMovies ...
-                            }
-                            */
-                            
-                            // Add extra space for bottom tab bar
-                            Spacer(minLength: geometry.safeAreaInsets.bottom + 70)
                         }
                     }
                 }
@@ -85,11 +113,11 @@ struct HomeView: View {
                 // Navigation title managed by TopTitleBar, so keep this hidden
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar(.hidden, for: .navigationBar)
-                 // Fetch data when the view appears
-                .onAppear(perform: loadData)
+                 // Fetch data and set up observers when the view appears
+                .onAppear(perform: setupView)
                 // Define the destination for the NavigationLink based on the selected item
                 .navigationDestination(for: MediaItem.self) { item in
-                    MediaDetailView(item: item)
+                    MediaDetailView(itemId: item.id) // Pass ID to detail view
                         .preferredColorScheme(.dark)
                         // Hide the default back button title if desired
                         .navigationBarTitle("", displayMode: .inline) 
@@ -107,30 +135,39 @@ struct HomeView: View {
         }
     }
     
-    // Function to load data from JellyfinService
-    private func loadData() {
-        print("HomeView appearing. Loading data...")
-        // TODO: Implement actual fetching in JellyfinService and update state here
-        // jellyfinService.fetchLatestMedia()
-        // jellyfinService.fetchRecentlyAdded()
-        // jellyfinService.fetchContinueWatching()
+    // Setup subscriptions and load initial data
+    private func setupView() {
+        // Subscribe to service publishers to update local state
+        jellyfinService.$latestItems
+            .receive(on: DispatchQueue.main)
+            .sink { items in self.featuredItems = items }
+            .store(in: &cancellables)
+            
+        jellyfinService.$continueWatchingItems
+            .receive(on: DispatchQueue.main)
+            .sink { items in self.continueWatchingItems = items }
+            .store(in: &cancellables)
+            
+        // TODO: Subscribe to recently added if implemented in service
         
-        // For now, simulate fetching placeholder data after a delay
+        // Load data if needed (e.g., if lists are empty)
+        if featuredItems.isEmpty { loadData() }
+    }
+    
+    // Function to trigger data loading in the service
+    private func loadData() {
+        print("HomeView: Requesting data from JellyfinService...")
+        jellyfinService.fetchLatestMedia(limit: 6) // Fetch 6 for banner
+        jellyfinService.fetchContinueWatching()
+        // TODO: Call fetchRecentlyAdded if implemented
+        
+        // Remove the old simulation logic
+        /*
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-             // Use the existing MediaItem structure for now
-             // We need to define a proper Codable struct mapping to Jellyfin API later
-            self.featuredItems = [
-                MediaItem(id: "jf1", title: "Jellyfin Feature 1", posterPath: "inception", type: .movie, year: "2024", rating: 8.0, overview: "Fetched from Jellyfin (simulated). A slightly longer description to test wrapping."),
-                MediaItem(id: "jf2", title: "Jellyfin Feature 2", posterPath: "darkknight", type: .movie, year: "2023", rating: 7.5, overview: "Another item from the server."),
-                MediaItem(id: "jf3", title: "Jellyfin Feature 3", posterPath: "inception", type: .tvShow, year: "2022", rating: 8.2, overview: "A featured TV Show.")
-                // Need 6 items total eventually
-            ]
-            self.recentlyAddedItems = [
-                 MediaItem(id: "jf4", title: "Recent Movie", posterPath: "inception", type: .movie, year: "2024", rating: 8.8, overview: "Recently added movie."),
-                 MediaItem(id: "jf5", title: "Recent Show", posterPath: "darkknight", type: .tvShow, year: "2024", rating: 9.0, overview: "Recently added TV show.")
-            ]
+            // ... old simulated data ...
             print("Simulated data loaded.")
         }
+        */
     }
 }
 
