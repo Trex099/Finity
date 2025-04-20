@@ -207,7 +207,7 @@ struct CustomPlayerControlsView: View {
                 // Top Bar (Close Button, Title)
                 HStack {
                     Button(action: {
-                        dismiss()
+                        onClose()
                     }) {
                         Image(systemName: "chevron.left")
                             .foregroundColor(.white)
