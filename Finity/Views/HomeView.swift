@@ -65,7 +65,7 @@ struct HomeView: View {
                                 tempMovies[(startIndex + i) % tempMovies.count]
                             }
                             let row = MediaRow(title: categories[index], items: rowItems)
-                            // Ensure MediaRowView exists and accepts the binding
+                            // Use the MediaRowView from Components/MediaRow.swift
                             MediaRowView(row: row, selectedItem: $selectedItemForDetail)
                                 .accessibility(identifier: "media_row_\(index)")
                         }
@@ -88,39 +88,6 @@ struct HomeView: View {
                 }
             })
         }
-    }
-}
-
-// Modify MediaRowView to accept the binding
-struct MediaRowView: View {
-    let row: MediaRow
-    @Binding var selectedItem: MediaItem? // Accept binding
-
-    var body: some View {
-        GeometryReader { geometry in
-            VStack(alignment: .leading, spacing: 12) {
-                Text(row.title)
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal)
-                    .accessibility(identifier: "row_title_\(row.title)")
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: geometry.size.width * 0.04) {
-                        ForEach(row.items) { item in
-                            MediaPosterCard(item: item)
-                                .frame(width: min(geometry.size.width * 0.3, 150))
-                                .accessibility(identifier: "media_card_\(item.id)")
-                                .onTapGesture { // Trigger detail view
-                                    selectedItem = item
-                                }
-                        }
-                    }
-                    .padding(.horizontal)
-                }
-            }
-        }
-        .frame(height: 270)
     }
 }
 
