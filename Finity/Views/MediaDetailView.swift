@@ -225,6 +225,15 @@ struct MediaDetailView: View {
                   print("MediaDetailView appearing for ID: \(itemId). Details already loaded.")
              }
         }
+        // Add alert modifier to show errors from the service
+        .alert("Error", isPresented: Binding(
+            get: { jellyfinService.errorMessage != nil },
+            set: { _ in jellyfinService.errorMessage = nil } // Clear error when dismissed
+        )) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(jellyfinService.errorMessage ?? "An unknown error occurred.")
+        }
     }
 }
 
