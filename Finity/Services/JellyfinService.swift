@@ -1,7 +1,7 @@
 import Foundation
 import Combine
 import UIKit
-import FirebaseFirestore // Keep Firestore
+// REMOVED: import FirebaseFirestore // No longer needed for credentials
 
 // Basic structure for Jellyfin Authentication Response
 struct AuthenticationResponse: Codable {
@@ -32,6 +32,15 @@ struct SessionInfo: Codable {
     // Add relevant fields if needed
 }
 
+// Define Keychain keys as constants
+private enum KeychainKeys {
+    static let service = "com.finity.jellyfin"
+    static let account = "userCredentials"
+    static let serverURLKey = "serverURL"
+    static let userIDKey = "userID"
+    static let accessTokenKey = "accessToken"
+}
+
 class JellyfinService: ObservableObject {
     // Authentication State
     @Published var isAuthenticated = false
@@ -49,103 +58,138 @@ class JellyfinService: ObservableObject {
     @Published var isLoadingData = false // For general data loading
     
     private var cancellables = Set<AnyCancellable>()
-    private let db = Firestore.firestore() // Firestore database reference
-    private var firestoreListener: ListenerRegistration? // For potential real-time updates if needed later
+    // REMOVED: private let db = Firestore.firestore()
+    // REMOVED: private var firestoreListener: ListenerRegistration?
 
-    // Initializer - Load credentials on init (Reverted)
+    // Initializer - Load credentials from Keychain
     init() {
-        print("JellyfinService Initializing - Loading credentials...")
-        loadCredentialsFromFirestore() // <-- Call load directly again
-        // isCheckingAuth will be set to false within loadCredentialsFromFirestore
+        print("JellyfinService Initializing - Loading credentials from Keychain...")
+        loadCredentialsFromKeychain()
+        // isCheckingAuth will be set to false within loadCredentialsFromKeychain
     }
     
-    // --- Firestore Credential Management ---
-
-    private func saveCredentialsToFirestore() {
+    // --- Keychain Credential Management ---
+    
+    private func saveCredentialsToKeychain() {
         guard let serverURL = self.serverURL, let userID = self.userID, let accessToken = self.accessToken else {
-            print("Error: Missing credentials to save.")
+            print("Error: Missing credentials to save to Keychain.")
             return
         }
-        
-        // Create a dictionary instead of using Codable
-        let credentialsData: [String: Any] = [
-            "serverURL": serverURL,
-            "userID": userID,
-            "accessToken": accessToken
-        ]
-        
-        // Use setData with dictionary instead of setData(from:)
-        db.collection("userSessions").document("currentUserSession").setData(credentialsData) { error in
-            if let error = error {
-                print("Error saving credentials to Firestore: \(error.localizedDescription)")
-                // Optionally set an error message for the user
+
+        do {
+            // Store credentials as a dictionary encoded to Data
+            let credentials = [
+                KeychainKeys.serverURLKey: serverURL,
+                KeychainKeys.userIDKey: userID,
+                KeychainKeys.accessTokenKey: accessToken
+            ]
+            let data = try JSONEncoder().encode(credentials)
+            
+            // Delete existing item first to ensure update works
+            let deleteQuery: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: KeychainKeys.service,
+                kSecAttrAccount as String: KeychainKeys.account
+            ]
+            SecItemDelete(deleteQuery as CFDictionary)
+            
+            // Add new item
+            let addQuery: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: KeychainKeys.service,
+                kSecAttrAccount as String: KeychainKeys.account,
+                kSecValueData as String: data,
+                kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly // Good security practice
+            ]
+            
+            let status = SecItemAdd(addQuery as CFDictionary, nil)
+            if status == errSecSuccess {
+                print("Credentials successfully saved to Keychain.")
             } else {
-                print("Credentials successfully saved to Firestore.")
+                print("Error saving credentials to Keychain. Status: \(status)")
             }
+        } catch {
+            print("Error encoding credentials for Keychain: \(error.localizedDescription)")
         }
     }
 
-    private func loadCredentialsFromFirestore() {
-        // Start checking auth state
-        DispatchQueue.main.async {
-             self.isCheckingAuth = true
-        }
+    private func loadCredentialsFromKeychain() {
+        // Start checking state
+        DispatchQueue.main.async { self.isCheckingAuth = true }
         
-        // Use the original document reference
-        let userDocRef = db.collection("userSessions").document("currentUserSession")
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: KeychainKeys.service,
+            kSecAttrAccount as String: KeychainKeys.account,
+            kSecReturnData as String: kCFBooleanTrue!,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
         
-        userDocRef.getDocument { (document, error) in
-            DispatchQueue.main.async { // Ensure UI updates happen on main thread
-                self.isCheckingAuth = false // Finished checking
-                if let error = error {
-                    print("Error loading credentials from Firestore: \(error.localizedDescription)")
-                    // Don't treat loading error as critical, just means no saved session
-                    self.clearAuthenticationLocally() // Ensure clean state
-                    return
-                }
-
-                if let document = document, document.exists, let data = document.data() {
-                    // Extract values from dictionary instead of using Codable
-                    if let serverURL = data["serverURL"] as? String,
-                       let userID = data["userID"] as? String,
-                       let accessToken = data["accessToken"] as? String {
-                        
-                        print("Credentials loaded from Firestore for user: \(userID)")
-                        self.serverURL = serverURL
-                        self.userID = userID
-                        self.accessToken = accessToken
-                        self.isAuthenticated = true
-                        self.errorMessage = nil
-                        
-                        // Optionally, trigger data fetches now that we are authenticated
-                        // self.fetchInitialData() // You might create a helper function for this
-                    } else {
-                        print("Invalid credentials data format in Firestore document.")
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        
+        DispatchQueue.main.async { // Ensure UI updates happen on main thread
+            self.isCheckingAuth = false // Finished checking
+            if status == errSecSuccess {
+                if let data = item as? Data {
+                    do {
+                        let credentials = try JSONDecoder().decode([String: String].self, from: data)
+                        if let serverURL = credentials[KeychainKeys.serverURLKey],
+                           let userID = credentials[KeychainKeys.userIDKey],
+                           let accessToken = credentials[KeychainKeys.accessTokenKey] {
+                            
+                            print("Credentials loaded from Keychain for user: \(userID)")
+                            self.serverURL = serverURL
+                            self.userID = userID
+                            self.accessToken = accessToken
+                            self.isAuthenticated = true
+                            self.errorMessage = nil
+                            // Optionally trigger data fetch
+                            // self.fetchInitialData()
+                        } else {
+                             print("Invalid credentials data format in Keychain item.")
+                             self.clearAuthenticationLocally()
+                        }
+                    } catch {
+                        print("Error decoding credentials from Keychain: \(error.localizedDescription)")
                         self.clearAuthenticationLocally()
                     }
                 } else {
-                    print("Credentials document does not exist in Firestore.")
+                    print("Keychain item found but data is not valid.")
                     self.clearAuthenticationLocally()
                 }
+            } else if status == errSecItemNotFound {
+                 print("Credentials not found in Keychain.")
+                 self.clearAuthenticationLocally()
+            } else {
+                print("Error loading credentials from Keychain. Status: \(status)")
+                self.clearAuthenticationLocally()
             }
         }
     }
 
-    private func clearCredentialsFromFirestore(completion: (() -> Void)? = nil) {
-        db.collection("userSessions").document("currentUserSession").delete() { error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    print("Error removing credentials from Firestore: \(error.localizedDescription)")
-                    // Handle error if needed, maybe show message?
+    private func clearCredentialsFromKeychain(completion: (() -> Void)? = nil) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: KeychainKeys.service,
+            kSecAttrAccount as String: KeychainKeys.account
+        ]
+        
+        DispatchQueue.global(qos: .background).async { // Keychain operations can block
+            let status = SecItemDelete(query as CFDictionary)
+            DispatchQueue.main.async { // Update UI/state on main thread
+                if status == errSecSuccess || status == errSecItemNotFound {
+                    print("Credentials successfully removed from Keychain (or were not found).")
                 } else {
-                    print("Credentials successfully removed from Firestore.")
+                    print("Error removing credentials from Keychain. Status: \(status)")
+                    // Handle error if needed
                 }
-                 completion?() // Call completion handler regardless of error
+                completion?()
             }
         }
     }
     
-    // Separate function to clear local state without touching Firestore
+    // Separate function to clear local state without touching Keychain
     private func clearAuthenticationLocally() {
         isAuthenticated = false
         accessToken = nil
@@ -189,39 +233,36 @@ class JellyfinService: ObservableObject {
             .decode(type: AuthenticationResponse.self, decoder: JSONDecoder())
             .receive(on: DispatchQueue.main)
             .sink(receiveCompletion: { [weak self] completion in
-                self?.isLoadingAuth = false // Stop loading indicator
+                self?.isLoadingAuth = false
                 if case .failure(let error) = completion {
                     self?.handleAPIError(error, context: "Authentication")
-                    self?.clearAuthenticationLocally() // Clear local state on failure
-                    // Don't clear Firestore here, keep the failed attempt potentially
+                    self?.clearAuthenticationLocally()
+                    // Don't clear keychain on failed login attempt
                 }
             }, receiveValue: { [weak self] authResponse in
                 print("Authentication successful for user: \(authResponse.user.name)")
                 self?.isAuthenticated = true
                 self?.accessToken = authResponse.accessToken
                 self?.userID = authResponse.user.id
-                self?.serverURL = serverURL.trimmingCharacters(in: CharacterSet(charactersIn: "/")) // Store cleaned URL
+                self?.serverURL = serverURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
                 self?.errorMessage = nil
                 
-                // Make sure to call saveCredentialsToFirestore() *after* Firebase Auth potentially signs in
-                // For now, assuming Jellyfin login doesn't also handle Firebase login directly
-                // We save Jellyfin credentials associated with the *currently logged-in* Firebase user
-                self?.saveCredentialsToFirestore()
+                // Save credentials to Keychain on successful authentication
+                self?.saveCredentialsToKeychain()
                 
-                // Optionally trigger initial data fetch after login
+                // Optionally trigger initial data fetch
                 // self?.fetchInitialData()
             })
             .store(in: &cancellables)
     }
 
-    // Renamed back to logout for clarity, as it doesn't involve Firebase Auth signout
     func logout() {
         print("Logging out...")
-        // Clear local state FIRST for snappy UI update
+        // Clear local state FIRST
         clearAuthenticationLocally()
-        // Then clear Firestore
-        clearCredentialsFromFirestore() { [weak self] in
-             print("User logged out and local/Firestore state cleared.")
+        // Then clear Keychain
+        clearCredentialsFromKeychain() { [weak self] in
+             print("User logged out and local/Keychain state cleared.")
         }
     }
     
