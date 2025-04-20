@@ -112,75 +112,92 @@ struct MediaPlayerView: View {
     
     // Helper function to choose the best source
     private func chooseBestMediaSource(from sources: [MediaSourceInfo]) -> MediaSourceInfo? {
-        // Simple Strategy: Prioritize HLS, then check DirectStream/DirectPlay compatibility
+        print("Evaluating \(sources.count) media sources...")
+        for source in sources {
+            print("  - Source ID: \(source.id ?? "N/A"), Protocol: \(source.protocol ?? "N/A"), Path: \(source.path ?? "N/A"), Container: \(source.container ?? "N/A"), DirectPlay: \(source.supportsDirectPlay ?? false), DirectStream: \(source.supportsDirectStream ?? false)")
+        }
         
-        // 1. Prioritize HLS
-        if let hlsSource = sources.first(where: { $0.protocol?.lowercased() == "hls" && $0.supportsDirectStream == true }) {
+        // 1. Prioritize HLS (protocol Hls, likely direct streamable)
+        if let hlsSource = sources.first(where: { 
+            ($0.protocol?.caseInsensitiveCompare("hls") == .orderedSame) && 
+            $0.supportsDirectStream == true 
+        }) {
             print("Choosing HLS source.")
             return hlsSource
         }
         
-        // 2. Look for compatible DirectStream (basic check)
-        // TODO: Add more robust checks based on container/codecs if needed
+        // 2. Look for compatible HTTP DirectStream
+        let compatibleContainers = ["mp4", "mov", "m4v"] // Add other known good containers
         if let directStreamSource = sources.first(where: { 
+            ($0.protocol?.caseInsensitiveCompare("http") == .orderedSame || $0.protocol?.caseInsensitiveCompare("https") == .orderedSame) &&
             $0.supportsDirectStream == true && 
-            ($0.container?.lowercased() == "mp4" || $0.container?.lowercased() == "mov") // Common iOS compatible containers
+            compatibleContainers.contains($0.container?.lowercased() ?? "") &&
+            (($0.path?.hasPrefix("/") ?? false) || ($0.path?.hasPrefix("http") ?? false)) // Ensure path is relative web path or absolute web URL
         }) {
             print("Choosing DirectStream source (Container: \(directStreamSource.container ?? "N/A"))")
             return directStreamSource
         }
         
-        // 3. Look for compatible DirectPlay (basic check)
+        // 3. Look for compatible HTTP DirectPlay
         if let directPlaySource = sources.first(where: { 
+            ($0.protocol?.caseInsensitiveCompare("http") == .orderedSame || $0.protocol?.caseInsensitiveCompare("https") == .orderedSame) &&
             $0.supportsDirectPlay == true && 
-            ($0.container?.lowercased() == "mp4" || $0.container?.lowercased() == "mov") 
+            compatibleContainers.contains($0.container?.lowercased() ?? "") &&
+            (($0.path?.hasPrefix("/") ?? false) || ($0.path?.hasPrefix("http") ?? false)) // Ensure path is relative web path or absolute web URL
         }) {
             print("Choosing DirectPlay source (Container: \(directPlaySource.container ?? "N/A"))")
             return directPlaySource
         }
         
-        // 4. Fallback: Maybe the first source if any exists?
-        // Or potentially a transcoding source if SupportsTranscoding is true?
-        // For now, return nil if no clear best choice found.
+        // 4. No suitable HLS or HTTP source found
         print("No preferred HLS/DirectStream/DirectPlay source found.")
-        return sources.first // Fallback to first source if absolutely necessary, might fail.
+        return nil // Return nil, let setupPlayer handle fallback
     }
     
     // Helper function to construct the final URL
     private func constructPlaybackURL(from source: MediaSourceInfo) -> URL? {
-        guard let path = source.path else { return nil }
+        guard let path = source.path else { 
+            print("Error: MediaSourceInfo has no path.")
+            return nil 
+        }
         
-        // Check if path is absolute or relative
-        if path.hasPrefix("http://") || path.hasPrefix("https://") {
-            // Assume it's absolute
+        // Check if path is absolute HTTP/HTTPS URL
+        if path.lowercased().hasPrefix("http://") || path.lowercased().hasPrefix("https://") {
+            print("Constructing URL from absolute path: \(path)")
             return URL(string: path)
-        } else {
-            // Assume relative, prepend server URL
-            guard let serverURL = jellyfinService.serverURL else { return nil }
-            
-            // Combine server URL and path
+        } 
+        // Check if path is a relative web path (starts with /)
+        else if path.hasPrefix("/") {
+             // Assume relative, prepend server URL
+            guard let serverURL = jellyfinService.serverURL else { 
+                print("Error: Cannot construct relative URL, missing serverURL.")
+                return nil 
+            }
             let fullPath = serverURL + path
+             print("Constructing URL from relative path: \(fullPath)")
             
             // --- Authentication for HLS/Streaming --- 
-            // Jellyfin often requires the API key for manifests/segments
             if source.protocol?.lowercased() == "hls" || source.isInfiniteStream == true {
                 guard let token = jellyfinService.accessToken else { 
                      print("Warning: HLS/Infinite stream may need token, but token is missing.")
-                     return URL(string: fullPath) // Return basic URL, might fail
+                     return URL(string: fullPath)
                 }
-                // Append api_key (check Jellyfin docs if this is correct format)
                 var components = URLComponents(string: fullPath)
                 var queryItems = components?.queryItems ?? []
                 queryItems.append(URLQueryItem(name: "api_key", value: token))
-                // Add DeviceId as well, sometimes required
                 queryItems.append(URLQueryItem(name: "deviceId", value: UIDevice.current.identifierForVendor?.uuidString ?? ""))
                 components?.queryItems = queryItems
                 print("Appending api_key/deviceId to HLS URL")
                 return components?.url
             } else {
-                // For direct play/stream, often no extra token needed in URL if session is authenticated
+                // For direct play/stream over HTTP/HTTPS with relative path
                 return URL(string: fullPath)
             }
+        } 
+        // If path is not absolute HTTP and not relative starting with /, treat as invalid (e.g., file path)
+        else {
+             print("Error: MediaSourceInfo path '\(path)' is not a recognized web path or URL.")
+             return nil
         }
     }
     
