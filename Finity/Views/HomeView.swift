@@ -71,7 +71,7 @@ struct HomeView: View {
             .fullScreenCover(isPresented: $showPlayer, content: {
                  // Pass the selected item to the player view
                 if let itemToPlay = selectedItemForNavigation { 
-                     MediaPlayerView(item: itemToPlay)
+                     MediaPlayerView_New(item: itemToPlay)
                 } else {
                     // Optional: Placeholder or error view if item is nil
                     Text("Error loading player").foregroundColor(.white)
