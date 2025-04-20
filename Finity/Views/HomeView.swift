@@ -5,9 +5,27 @@ struct HomeView: View {
         baseURL: "https://your-jellyfin-server.com",
         apiKey: "your-api-key"
     )
-    @State private var selectedTab: NavigationTab = .home
+    @State private var selectedTab: TabItem = .home
     @State private var selectedItem: MediaItem?
     @State private var showPlayer = false
+    
+    // Temporary movie data for testing
+    private let tempMovies = [
+        MediaItem(id: "1", title: "Inception", posterPath: "inception", type: .movie, year: "2010", rating: 8.8, overview: "A thief who steals corporate secrets through the use of dream-sharing technology."),
+        MediaItem(id: "2", title: "The Dark Knight", posterPath: "darkknight", type: .movie, year: "2008", rating: 9.0, overview: "Batman faces his greatest challenge yet."),
+        MediaItem(id: "3", title: "Interstellar", posterPath: "inception", type: .movie, year: "2014", rating: 8.6, overview: "A team of explorers travel through a wormhole in space."),
+        MediaItem(id: "4", title: "The Matrix", posterPath: "darkknight", type: .movie, year: "1999", rating: 8.7, overview: "A computer hacker learns about the true nature of reality."),
+        MediaItem(id: "5", title: "Avengers: Endgame", posterPath: "inception", type: .movie, year: "2019", rating: 8.4, overview: "The Avengers take a final stand against Thanos."),
+        MediaItem(id: "6", title: "Pulp Fiction", posterPath: "darkknight", type: .movie, year: "1994", rating: 8.9, overview: "The lives of two mob hitmen, a boxer, and a pair of diner bandits intertwine.")
+    ]
+    
+    private let categories = [
+        "Recently Added",
+        "Action Movies",
+        "Popular Titles",
+        "Trending Now",
+        "Sci-Fi Classics"
+    ]
     
     var body: some View {
         GeometryReader { geometry in
@@ -16,48 +34,66 @@ struct HomeView: View {
                 Color.black.edgesIgnoringSafeArea(.all)
                 
                 // Main content
-                ScrollView {
-                    VStack(spacing: 0) {
-                        // Featured content
-                        if !jellyfinService.featuredContent.isEmpty {
-                            FeaturedContentView(item: jellyfinService.featuredContent[0])
-                                .onTapGesture {
-                                    selectedItem = jellyfinService.featuredContent[0]
-                                    showPlayer = true
-                                }
-                                .accessibility(identifier: "featured_content")
-                        }
-                        
-                        // Content rows
-                        ForEach(jellyfinService.categories) { row in
-                            MediaRowView(row: row)
-                                .accessibility(identifier: "media_row_\(row.id)")
-                        }
-                        
-                        // Add extra space at bottom to ensure content isn't covered by tab bars, etc.
-                        Spacer(minLength: geometry.safeAreaInsets.bottom + 20)
-                    }
-                }
-                .edgesIgnoringSafeArea(.bottom)
-                
-                // Top navigation bar
-                VStack {
-                    TopNavigationBar(selectedTab: $selectedTab)
+                VStack(spacing: 0) {
+                    // Top metallic title
+                    TopTitleBar()
                         .padding(.top, geometry.safeAreaInsets.top)
-                    Spacer()
+                    
+                    // Scrollable content
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            // Featured content
+                            if !tempMovies.isEmpty {
+                                FeaturedContentView(item: tempMovies[0])
+                                    .onTapGesture {
+                                        selectedItem = tempMovies[0]
+                                        showPlayer = true
+                                    }
+                                    .accessibility(identifier: "featured_content")
+                            }
+                            
+                            // Content rows
+                            ForEach(0..<categories.count, id: \.self) { index in
+                                // Create a subset of movies for each category (cycling through the temp movies)
+                                let rowMovies = Array(0..<4).map { i in
+                                    tempMovies[(index + i) % tempMovies.count]
+                                }
+                                let row = MediaRow(title: categories[index], items: rowMovies)
+                                MediaRowView(row: row)
+                                    .accessibility(identifier: "media_row_\(index)")
+                            }
+                            
+                            // Add extra space at bottom
+                            Spacer(minLength: geometry.safeAreaInsets.bottom + 70)
+                        }
+                    }
+                    
+                    // Bottom tab bar
+                    BottomTabBar(selectedTab: $selectedTab)
+                        .padding(.bottom, geometry.safeAreaInsets.bottom)
                 }
-                .edgesIgnoringSafeArea(.top)
+                .edgesIgnoringSafeArea(.vertical)
             }
             .fullScreenCover(isPresented: $showPlayer, content: {
                 if let item = selectedItem {
                     MediaPlayerView(item: item)
                 }
             })
-            .onAppear {
-                // Load data
-                jellyfinService.fetchFeaturedContent()
-                jellyfinService.fetchCategories()
-            }
+        }
+    }
+    
+    // Function to determine which view to show based on selected tab
+    @ViewBuilder
+    private func currentTabView() -> some View {
+        switch selectedTab {
+        case .home:
+            Text("Home Tab")
+        case .search:
+            Text("Search Tab")
+        case .favorites:
+            Text("Favorites Tab")
+        case .settings:
+            Text("Settings Tab")
         }
     }
 }
