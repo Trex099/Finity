@@ -370,13 +370,80 @@ struct MediaPlayerView: View {
     }
     
     private func setupAVPlayer(with url: URL) {
-        player = AVPlayer(url: url)
-        addPlayerObservers(player: player!)
-        loadPlayerDuration(player: player!)
+        // Reset state if needed
+        if player != nil {
+            removePlayerObservers()
+        }
+        
+        // Create new player
+        let avPlayer = AVPlayer(url: url)
+        self.player = avPlayer
+        
+        // Add observers
+        addPlayerObservers(player: avPlayer)
+        
+        // Load duration
+        Task {
+            do {
+                try await loadPlayerDuration(player: avPlayer)
+                
+                // Start playback automatically
+                avPlayer.play()
+                isPlaying = true
+                scheduleControlsTimer()
+                
+                // Hide loading indicator
+                isLoading = false
+                print("Player setup complete, playback started.")
+            } catch {
+                print("Error loading player duration: \(error)")
+                // Continue with playback even if duration can't be determined
+                avPlayer.play()
+                isPlaying = true
+                isLoading = false
+            }
+        }
     }
     
     private func startPlaybackSession(itemId: String) {
-        // Implementation of startPlaybackSession method
+        Task {
+            do {
+                // Generate a session ID
+                let sessionId = UUID().uuidString
+                
+                // Report playback start to Jellyfin
+                try await jellyfinService.reportPlaybackStart(
+                    itemId: itemId,
+                    sessionId: sessionId
+                )
+                
+                print("Started playback session for item: \(itemId)")
+            } catch {
+                print("Failed to start playback session: \(error)")
+                // Continue with playback even if session can't be reported
+            }
+        }
+    }
+    
+    // Clean up observers when needed
+    private func removePlayerObservers() {
+        // Remove time observer
+        if let token = timeObserverToken, let player = player {
+            player.removeTimeObserver(token)
+            timeObserverToken = nil
+        }
+        
+        // Remove notification observers
+        NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: nil)
+    }
+
+    // Handle player item finishing
+    @objc private func playerItemDidPlayToEndTime() {
+        isPlaying = false
+        if autoExitOnFinish {
+            // Exit the player view
+            presentationMode.wrappedValue.dismiss()
+        }
     }
 }
 
