@@ -21,8 +21,8 @@ struct ContentView: View {
         Group {
             // Use the service's published property
             if jellyfinService.isAuthenticated {
-                // Use the ContentNavigationView from Views directory
-                Views.ContentNavigationView()
+                // Now there's only one ContentNavigationView in scope
+                ContentNavigationView()
                     .environmentObject(jellyfinService)
                     .environmentObject(navigationState)
             } else {

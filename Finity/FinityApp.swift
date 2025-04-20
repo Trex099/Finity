@@ -69,7 +69,7 @@ struct MainView: View {
                  ProgressView().scaleEffect(1.5).tint(.white)
              }
          } else if jellyfinService.isAuthenticated {
-             ContentNavigationView() // Assumes this view uses the environment object
+             MainContentNavigationView() // Use the renamed view
                 .environmentObject(navigationState)
          } else {
              LoginView(jellyfinService: jellyfinService) // Pass explicitly as LoginView uses @ObservedObject
@@ -78,7 +78,7 @@ struct MainView: View {
 }
 
 // Placeholder for your main navigation structure after login
-struct ContentNavigationView: View {
+struct MainContentNavigationView: View {
      @EnvironmentObject var jellyfinService: JellyfinService
      @EnvironmentObject var navigationState: NavigationState // For managing search view state etc.
 
