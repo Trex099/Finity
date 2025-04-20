@@ -171,11 +171,6 @@ enum TabItem: String, CaseIterable {
     }
 }
 
-// Assuming TodoTabView is defined elsewhere
-struct TodoTabView: View { 
-    var body: some View { Text("Todo Tab") } 
-}
-
 struct BlurView: UIViewRepresentable {
     var style: UIBlurEffect.Style
     
