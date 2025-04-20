@@ -2,7 +2,6 @@ import SwiftUI
 
 struct MediaRowView: View {
     let row: MediaRow
-    @Binding var selectedItem: MediaItem?
 
     var body: some View {
         GeometryReader { geometry in
@@ -18,12 +17,11 @@ struct MediaRowView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: geometry.size.width * 0.04) {
                         ForEach(row.items) { item in
-                            MediaPosterCard(item: item)
-                                .frame(width: min(geometry.size.width * 0.3, 150))
-                                .accessibility(identifier: "media_card_\(item.id)")
-                                .onTapGesture {
-                                    selectedItem = item
-                                }
+                            NavigationLink(value: item) {
+                                MediaPosterCard(item: item)
+                                    .frame(width: min(geometry.size.width * 0.3, 150))
+                                    .accessibility(identifier: "media_card_\(item.id)")
+                            }
                         }
                     }
                     .padding(.horizontal)
@@ -44,18 +42,16 @@ struct MediaRowView_Previews: PreviewProvider {
     )
     
     static var previews: some View {
-        @State var selectedItemPreview: MediaItem? = nil
-        
         Group {
             ZStack {
                 Color.black.edgesIgnoringSafeArea(.all)
-                MediaRowView(row: previewRow, selectedItem: $selectedItemPreview)
+                MediaRowView(row: previewRow)
             }
             .previewDevice("iPhone 13 Pro")
             
             ZStack {
                 Color.black.edgesIgnoringSafeArea(.all)
-                MediaRowView(row: previewRow, selectedItem: $selectedItemPreview)
+                MediaRowView(row: previewRow)
             }
             .previewDevice("iPhone SE (3rd generation)")
         }
