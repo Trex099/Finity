@@ -21,7 +21,6 @@ struct FavoritesView: View {
             VStack(spacing: 0) {
                 // Top Title Bar (Static, Custom Title, Search Icon)
                 TopTitleBar(showSearchView: $showSearchView, title: "My Favorites", showLogo: false, showSearchIcon: true)
-                    .padding(.top, geometry.safeAreaInsets.top)
                     // Ensure background is black and covers safe area
                     .background(Color.black.edgesIgnoringSafeArea(.top))
                 

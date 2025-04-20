@@ -39,7 +39,6 @@ struct HomeView: View {
                 VStack(spacing: 0) {
                     // Top Title Bar (Static, with Logo and Search)
                     TopTitleBar(showSearchView: $showSearchView, showLogo: true, showSearchIcon: true)
-                        .padding(.top, geometry.safeAreaInsets.top)
                         .background(Color.black.edgesIgnoringSafeArea(.top))
                     
                     // Show loading indicator over the whole scroll view if loading initial data
