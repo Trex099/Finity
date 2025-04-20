@@ -4,21 +4,37 @@ struct ContentNavigationView: View {
     @State private var selectedTab: TabItem = .home
     @State private var showSearchView = false // State to control search presentation
     
+    let barContentHeight: CGFloat = 50 // Height of the interactive part
+    let totalBarVisualHeight: CGFloat = 75 // Desired total visual height of the blurred background
+    
     var body: some View {
-        // Main content container
-        VStack(spacing: 0) {
-            currentTabView(showSearchView: $showSearchView)
+        GeometryReader { geometry in
+            ZStack(alignment: .bottom) { 
+                // Main content area
+                VStack(spacing: 0) {
+                    currentTabView(showSearchView: $showSearchView)
+                }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .background(Color.black.edgesIgnoringSafeArea(.all))
-        .safeAreaInset(edge: .bottom, spacing: 0) { // Use safeAreaInset for the bar
-            BottomTabBar(selectedTab: $selectedTab)
-                .padding(.vertical, 10) // Add 10pt padding above and below icons/text
-        }
-        .edgesIgnoringSafeArea(.bottom) // Allow main content AND inset background to go edge-to-edge
-        .sheet(isPresented: $showSearchView) { 
-            SearchView()
-                .preferredColorScheme(.dark)
+                
+                // Layer 1: Taller Background Blur
+                BlurView(style: .systemMaterialDark)
+                    .frame(height: totalBarVisualHeight + geometry.safeAreaInsets.bottom)
+                    .offset(y: geometry.safeAreaInsets.bottom) // Offset slightly if needed, usually not
+                    // Alternatively, just let edgesIgnoringSafeArea handle it:
+                   // .frame(height: totalBarVisualHeight)
+                   // .edgesIgnoringSafeArea(.bottom)
+
+                // Layer 2: Interactive Content (Padded UP from the true bottom)
+                BottomTabBar(selectedTab: $selectedTab, contentAreaHeight: barContentHeight)
+                    .padding(.bottom, geometry.safeAreaInsets.bottom)
+                
+            }
+            .background(Color.black.edgesIgnoringSafeArea(.all))
+            .edgesIgnoringSafeArea(.bottom) // Let ZStack manage edge-to-edge
+            .sheet(isPresented: $showSearchView) { 
+                SearchView()
+                    .preferredColorScheme(.dark)
+            }
         }
     }
     
