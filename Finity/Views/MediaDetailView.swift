@@ -16,10 +16,10 @@ struct MediaDetailView: View {
     
     // Mock data for related content (keep for now, replace later if needed)
     private let relatedItems = [
-        MediaItem(id: "R1", name: "The Dark Knight Rises", serverId: nil, type: "Movie", overview: "...", productionYear: 2012, communityRating: 8.4, officialRating: nil, imageTags: ["Primary":"darkknightTag"], backdropImageTags: nil, userData: nil, genres: nil, runTimeTicks: nil),
-        MediaItem(id: "R2", name: "Batman Begins", serverId: nil, type: "Movie", overview: "...", productionYear: 2005, communityRating: 8.2, officialRating: nil, imageTags: ["Primary":"inceptionTag"], backdropImageTags: nil, userData: nil, genres: nil, runTimeTicks: nil),
-        MediaItem(id: "R3", name: "Tenet", serverId: nil, type: "Movie", overview: "...", productionYear: 2020, communityRating: 7.3, officialRating: nil, imageTags: ["Primary":"darkknightTag"], backdropImageTags: nil, userData: nil, genres: nil, runTimeTicks: nil),
-        MediaItem(id: "R4", name: "Memento", serverId: nil, type: "Movie", overview: "...", productionYear: 2000, communityRating: 8.4, officialRating: nil, imageTags: ["Primary":"inceptionTag"], backdropImageTags: nil, userData: nil, genres: nil, runTimeTicks: nil)
+        MediaItem(id: "R1", name: "The Dark Knight Rises", serverId: nil, type: "Movie", overview: "...", productionYear: 2012, communityRating: 8.4, officialRating: nil, imageTags: ["Primary":"darkknightTag"], backdropImageTags: nil, userData: nil, genres: nil, runTimeTicks: nil, indexNumber: nil, parentIndexNumber: nil, seriesName: nil),
+        MediaItem(id: "R2", name: "Batman Begins", serverId: nil, type: "Movie", overview: "...", productionYear: 2005, communityRating: 8.2, officialRating: nil, imageTags: ["Primary":"inceptionTag"], backdropImageTags: nil, userData: nil, genres: nil, runTimeTicks: nil, indexNumber: nil, parentIndexNumber: nil, seriesName: nil),
+        MediaItem(id: "R3", name: "Tenet", serverId: nil, type: "Movie", overview: "...", productionYear: 2020, communityRating: 7.3, officialRating: nil, imageTags: ["Primary":"darkknightTag"], backdropImageTags: nil, userData: nil, genres: nil, runTimeTicks: nil, indexNumber: nil, parentIndexNumber: nil, seriesName: nil),
+        MediaItem(id: "R4", name: "Memento", serverId: nil, type: "Movie", overview: "...", productionYear: 2000, communityRating: 8.4, officialRating: nil, imageTags: ["Primary":"inceptionTag"], backdropImageTags: nil, userData: nil, genres: nil, runTimeTicks: nil, indexNumber: nil, parentIndexNumber: nil, seriesName: nil)
     ]
     
     var body: some View {
