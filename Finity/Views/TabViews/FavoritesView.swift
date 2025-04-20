@@ -10,90 +10,96 @@ struct FavoritesView: View {
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                // Top metallic title
-                TopTitleBar()
-                    .padding(.top, geometry.safeAreaInsets.top)
-                
-                // Header
-                HStack {
-                    Text("My Favorites")
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                    
-                    Spacer()
-                    
-                    Button(action: {}) {
-                        Image(systemName: "ellipsis")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                            .frame(width: 44, height: 44)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
-                
-                // Favorites content
-                if favoriteMovies.isEmpty {
-                    Spacer()
-                    VStack(spacing: 16) {
-                        Image(systemName: "heart.fill")
-                            .font(.system(size: 60))
-                            .foregroundColor(.gray.opacity(0.5))
+                // Scrollable content including the title bar
+                ScrollView {
+                    VStack(spacing: 0) {
+                        // Top metallic title now inside scroll view
+                        TopTitleBar()
+                            .padding(.top, geometry.safeAreaInsets.top)
                         
-                        Text("No favorites yet")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                        
-                        Text("Movies and shows you mark as favorites will appear here")
-                            .font(.body)
-                            .foregroundColor(.gray)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 32)
-                    }
-                    Spacer()
-                } else {
-                    ScrollView {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 16) {
-                            ForEach(favoriteMovies) { movie in
-                                VStack(alignment: .leading) {
-                                    Image(movie.posterPath)
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(height: 225)
-                                        .cornerRadius(8)
-                                    
-                                    Text(movie.title)
-                                        .font(.headline)
-                                        .foregroundColor(.white)
-                                        .lineLimit(1)
-                                    
-                                    HStack {
-                                        Text(movie.year)
-                                            .font(.caption)
-                                        
-                                        Spacer()
-                                        
-                                        HStack(spacing: 4) {
-                                            Image(systemName: "star.fill")
-                                                .foregroundColor(.yellow)
-                                                .font(.caption)
-                                            
-                                            Text(String(format: "%.1f", movie.rating))
-                                                .font(.caption)
-                                        }
-                                    }
-                                    .foregroundColor(.white.opacity(0.7))
-                                }
-                                .padding(.bottom, 8)
+                        // Header
+                        HStack {
+                            Text("My Favorites")
+                                .font(.title)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                            
+                            Spacer()
+                            
+                            Button(action: {}) {
+                                Image(systemName: "ellipsis")
+                                    .font(.title2)
+                                    .foregroundColor(.white)
+                                    .frame(width: 44, height: 44)
                             }
                         }
                         .padding(.horizontal, 16)
-                        .padding(.top, 16)
+                        .padding(.top, 16) // Add padding below title bar
                         
+                        // Favorites content
+                        if favoriteMovies.isEmpty {
+                            Spacer()
+                            VStack(spacing: 16) {
+                                Image(systemName: "heart.fill")
+                                    .font(.system(size: 60))
+                                    .foregroundColor(.gray.opacity(0.5))
+                                
+                                Text("No favorites yet")
+                                    .font(.title2)
+                                    .foregroundColor(.white)
+                                
+                                Text("Movies and shows you mark as favorites will appear here")
+                                    .font(.body)
+                                    .foregroundColor(.gray)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 32)
+                            }
+                            Spacer()
+                                .frame(height: geometry.size.height * 0.3) // Push empty message down
+                        } else {
+                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 16) {
+                                ForEach(favoriteMovies) { movie in
+                                    VStack(alignment: .leading) {
+                                        Image(movie.posterPath)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(height: 225)
+                                            .cornerRadius(8)
+                                        
+                                        Text(movie.title)
+                                            .font(.headline)
+                                            .foregroundColor(.white)
+                                            .lineLimit(1)
+                                        
+                                        HStack {
+                                            Text(movie.year)
+                                                .font(.caption)
+                                            
+                                            Spacer()
+                                            
+                                            HStack(spacing: 4) {
+                                                Image(systemName: "star.fill")
+                                                    .foregroundColor(.yellow)
+                                                    .font(.caption)
+                                                
+                                                Text(String(format: "%.1f", movie.rating))
+                                                    .font(.caption)
+                                            }
+                                        }
+                                        .foregroundColor(.white.opacity(0.7))
+                                    }
+                                    .padding(.bottom, 8)
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.top, 16)
+                        }
+                        
+                        // Add extra space for bottom tab bar
                         Spacer(minLength: geometry.safeAreaInsets.bottom + 70)
                     }
                 }
+                .edgesIgnoringSafeArea(.top) // Allow content to scroll under status bar
             }
             .background(Color.black.edgesIgnoringSafeArea(.all))
         }
