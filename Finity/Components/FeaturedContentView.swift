@@ -129,7 +129,10 @@ struct FeaturedContentView_Previews: PreviewProvider {
             backdropImageTags: ["inceptionBackdropPreviewTag"], // Optional
             userData: nil, // Optional
             genres: ["Action", "Sci-Fi"], // Optional
-            runTimeTicks: 72000000000 // Optional
+            runTimeTicks: 72000000000, // Optional
+            indexNumber: nil,
+            parentIndexNumber: nil,
+            seriesName: nil
         )
 
         Group {
