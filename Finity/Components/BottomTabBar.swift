@@ -7,9 +7,12 @@ enum TabItem: String, CaseIterable {
     
     var icon: String {
         switch self {
-        case .home: return "house.fill"
-        case .favorites: return "heart.fill"
-        case .settings: return "gear"
+        case .home:
+            return "house.fill"
+        case .favorites:
+            return "heart.fill"
+        case .settings:
+            return "gear"
         }
     }
 }
