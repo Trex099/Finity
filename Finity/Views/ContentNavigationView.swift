@@ -13,6 +13,7 @@ struct ContentNavigationView: View {
         .background(Color.black.edgesIgnoringSafeArea(.all))
         .safeAreaInset(edge: .bottom, spacing: 0) { // Use safeAreaInset for the bar
             BottomTabBar(selectedTab: $selectedTab)
+                .padding(.vertical, 10) // Add 10pt padding above and below icons/text
         }
         .edgesIgnoringSafeArea(.bottom) // Allow main content AND inset background to go edge-to-edge
         .sheet(isPresented: $showSearchView) { 

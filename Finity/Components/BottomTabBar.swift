@@ -16,8 +16,8 @@ enum TabItem: String, CaseIterable {
 
 struct BottomTabBar: View {
     @Binding var selectedTab: TabItem
-    // Total desired height of the visible blurred bar (including padding above/below icons)
-    let totalBarHeight: CGFloat = 65
+    // Height for the actual interactive content (icon + text)
+    let contentAreaHeight: CGFloat = 50
 
     var body: some View {
         HStack(spacing: 0) {
@@ -29,24 +29,25 @@ struct BottomTabBar: View {
                 }) {
                     VStack(spacing: 4) {
                         Image(systemName: tab.icon)
-                            .font(.system(size: 24))
+                            .font(.system(size: 22)) // Adjusted icon size back
                             .foregroundColor(selectedTab == tab ? .white : .gray)
                         
                         Text(tab.rawValue)
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.system(size: 10, weight: .medium)) // Adjusted text size back
                             .foregroundColor(selectedTab == tab ? .white : .gray)
                     }
                     .frame(maxWidth: .infinity)
-                    // Ensure content is centered within the button frame
-                    .frame(height: totalBarHeight)
+                    // Ensure content fits within the specified content height
+                    .frame(height: contentAreaHeight)
                 }
                 .accessibility(identifier: "tab_\(tab.rawValue)")
             }
         }
-        // The HStack defines the visual height of the bar
-        .frame(height: totalBarHeight)
-        .background(BlurView(style: .systemMaterialDark)) // Background applied directly
-        // No safe area handling here - container will manage placement
+        // HStack frame matches the content height
+        .frame(height: contentAreaHeight)
+        // Background is applied ONLY to the content height area
+        .background(BlurView(style: .systemMaterialDark))
+        // Container view (.safeAreaInset) will handle positioning and padding
     }
 }
 
@@ -61,8 +62,12 @@ struct BottomTabBar_Previews: PreviewProvider {
     static var previews: some View {
         VStack {
             Spacer()
-            // Preview the bar appearance directly
+            // Preview simulates how it might look in the inset
             BottomTabBar(selectedTab: .constant(.home))
+                .padding(.vertical, 10) // Add example padding
+                .padding(.bottom, 34) // Add example safe area
+                .background(Color.black) // Add black behind for contrast
+
         }
         .background(Color.gray)
         .edgesIgnoringSafeArea(.all)
