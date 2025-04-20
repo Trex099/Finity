@@ -17,16 +17,16 @@ struct ContentNavigationView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 
                 // Layer 1: Taller Background Blur
+                let safeAreaBottom = geometry.safeAreaInsets.bottom
+                let totalBarHeight = barContentHeight + safeAreaBottom + extraTopPadding // Assuming extraTopPadding is defined or replace calculation
                 BlurView(style: .systemMaterialDark)
-                    .frame(height: totalBarVisualHeight + geometry.safeAreaInsets.bottom)
-                    .offset(y: geometry.safeAreaInsets.bottom) // Offset slightly if needed, usually not
-                    // Alternatively, just let edgesIgnoringSafeArea handle it:
-                   // .frame(height: totalBarVisualHeight)
-                   // .edgesIgnoringSafeArea(.bottom)
+                    .frame(height: totalBarVisualHeight + safeAreaBottom) // Use constant + safe area
+                   // .offset(y: safeAreaBottom) // Offset might not be needed depending on frame/alignment
+                    .edgesIgnoringSafeArea(.bottom)
 
                 // Layer 2: Interactive Content (Padded UP from the true bottom)
-                BottomTabBar(selectedTab: $selectedTab, contentAreaHeight: barContentHeight)
-                    .padding(.bottom, geometry.safeAreaInsets.bottom)
+                BottomTabBar(selectedTab: $selectedTab) // Removed extra argument
+                    .padding(.bottom, safeAreaBottom)
                 
             }
             .background(Color.black.edgesIgnoringSafeArea(.all))
@@ -37,6 +37,9 @@ struct ContentNavigationView: View {
             }
         }
     }
+    
+    // Define extraTopPadding if calculation is kept, or remove if not used
+     let extraTopPadding: CGFloat = 10
     
     // Function to create the correct view based on the selected tab
     @ViewBuilder
