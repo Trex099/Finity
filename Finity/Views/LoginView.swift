@@ -15,6 +15,9 @@ struct LoginView: View {
     // var onAuthenticated: () -> Void
 
     var body: some View {
+        // Assign the service property to a local constant
+        let isCurrentlyLoading = jellyfinService.isLoadingAuth // Use the renamed property
+        
         NavigationView { // Use NavigationView for the title
             ZStack {
                 // Background color to match the app theme
@@ -87,8 +90,8 @@ struct LoginView: View {
                     Button(action: performLogin) {
                         HStack {
                             Spacer()
-                            // Use isLoading from service
-                            if jellyfinService.isLoading {
+                            // Use the local constant
+                            if isCurrentlyLoading {
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: .black))
                             } else {
@@ -102,9 +105,9 @@ struct LoginView: View {
                         .foregroundColor(.black)
                         .cornerRadius(8)
                     }
-                    // Disable based on service state and input fields
-                    .disabled(jellyfinService.isLoading || serverURL.isEmpty || username.isEmpty || password.isEmpty)
-                    .opacity((jellyfinService.isLoading || serverURL.isEmpty || username.isEmpty || password.isEmpty) ? 0.6 : 1.0)
+                    // Disable based on local constant and input fields
+                    .disabled(isCurrentlyLoading || serverURL.isEmpty || username.isEmpty || password.isEmpty)
+                    .opacity((isCurrentlyLoading || serverURL.isEmpty || username.isEmpty || password.isEmpty) ? 0.6 : 1.0)
                     .padding(.top, 20)
 
                     Spacer()
