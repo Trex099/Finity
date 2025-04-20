@@ -6,17 +6,19 @@ struct FavoritesView: View {
         MediaItem(id: "1", title: "Inception", posterPath: "inception", type: .movie, year: "2010", rating: 8.8, overview: "A thief who steals corporate secrets through the use of dream-sharing technology."),
         MediaItem(id: "2", title: "The Dark Knight", posterPath: "darkknight", type: .movie, year: "2008", rating: 9.0, overview: "Batman faces his greatest challenge yet.")
     ]
+    @Binding var showSearchView: Bool // Binding from ContentNavigationView
     
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                // Scrollable content including the title bar
+                // Top Title Bar (Static)
+                TopTitleBar(showSearchView: $showSearchView)
+                    .padding(.top, geometry.safeAreaInsets.top)
+                    .background(Color.black)
+                
+                // Scrollable content below the title bar
                 ScrollView {
                     VStack(spacing: 0) {
-                        // Top metallic title now inside scroll view
-                        TopTitleBar()
-                            .padding(.top, geometry.safeAreaInsets.top)
-                        
                         // Header
                         HStack {
                             Text("My Favorites")
@@ -99,8 +101,8 @@ struct FavoritesView: View {
                         Spacer(minLength: geometry.safeAreaInsets.bottom + 70)
                     }
                 }
-                .edgesIgnoringSafeArea(.top) // Allow content to scroll under status bar
             }
+            .edgesIgnoringSafeArea(.top)
             .background(Color.black.edgesIgnoringSafeArea(.all))
         }
     }
@@ -108,7 +110,10 @@ struct FavoritesView: View {
 
 struct FavoritesView_Previews: PreviewProvider {
     static var previews: some View {
-        FavoritesView()
+        // Provide a constant binding for the preview
+        @State var showSearch = false
+        
+        FavoritesView(showSearchView: $showSearch)
             .preferredColorScheme(.dark)
     }
 } 

@@ -2,13 +2,15 @@ import SwiftUI
 
 struct ContentNavigationView: View {
     @State private var selectedTab: TabItem = .home
+    @State private var showSearchView = false // State to control search presentation
     
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .bottom) {
-                // Content based on selected tab
+                // Main content area
                 VStack(spacing: 0) {
-                    tabView
+                    // Pass binding to TopTitleBar in each view
+                    currentTabView(showSearchView: $showSearchView)
                 }
                 
                 // Bottom tab bar
@@ -17,20 +19,25 @@ struct ContentNavigationView: View {
             }
             .background(Color.black.edgesIgnoringSafeArea(.all))
             .edgesIgnoringSafeArea(.bottom)
+            .sheet(isPresented: $showSearchView) { // Present SearchView as a sheet
+                SearchView()
+                    .preferredColorScheme(.dark)
+            }
         }
     }
     
+    // Function to create the correct view based on the selected tab
     @ViewBuilder
-    private var tabView: some View {
+    private func currentTabView(showSearchView: Binding<Bool>) -> some View {
         switch selectedTab {
         case .home:
-            HomeView()
-        case .search:
-            SearchView()
+            HomeView(showSearchView: showSearchView)
+        // case .search: // Removed Search case
+        //     SearchView()
         case .favorites:
-            FavoritesView()
+            FavoritesView(showSearchView: showSearchView)
         case .settings:
-            SettingsView()
+            SettingsView(showSearchView: showSearchView)
         }
     }
 }

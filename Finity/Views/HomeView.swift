@@ -7,6 +7,7 @@ struct HomeView: View {
     )
     @State private var selectedItem: MediaItem?
     @State private var showPlayer = false
+    @Binding var showSearchView: Bool // Binding from ContentNavigationView
     
     // Temporary movie data for testing
     private let tempMovies = [
@@ -29,13 +30,14 @@ struct HomeView: View {
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                // Scrollable content including the title bar
+                // Top Title Bar (Static)
+                TopTitleBar(showSearchView: $showSearchView)
+                    .padding(.top, geometry.safeAreaInsets.top)
+                    .background(Color.black) // Ensure background covers safe area
+                
+                // Scrollable content below the title bar
                 ScrollView {
                     VStack(spacing: 0) {
-                        // Top metallic title now inside scroll view
-                        TopTitleBar()
-                            .padding(.top, geometry.safeAreaInsets.top) // Add safe area padding here
-                        
                         // Featured content
                         if !tempMovies.isEmpty {
                             FeaturedContentView(item: tempMovies[0])
@@ -44,6 +46,7 @@ struct HomeView: View {
                                     showPlayer = true
                                 }
                                 .accessibility(identifier: "featured_content")
+                                .padding(.top, 8) // Add space below static title bar
                         }
                         
                         // Content rows
@@ -61,8 +64,8 @@ struct HomeView: View {
                         Spacer(minLength: geometry.safeAreaInsets.bottom + 70)
                     }
                 }
-                .edgesIgnoringSafeArea(.top) // Allow content to scroll under status bar
             }
+            .edgesIgnoringSafeArea(.top)
             .background(Color.black)
             .fullScreenCover(isPresented: $showPlayer, content: {
                 if let item = selectedItem {
@@ -75,12 +78,15 @@ struct HomeView: View {
 
 struct HomeView_Previews: PreviewProvider {
     static var previews: some View {
+        // Provide a constant binding for the preview
+        @State var showSearch = false
+        
         Group {
-            HomeView()
+            HomeView(showSearchView: $showSearch)
                 .preferredColorScheme(.dark)
                 .previewDevice("iPhone 13 Pro")
             
-            HomeView()
+            HomeView(showSearchView: $showSearch)
                 .preferredColorScheme(.dark)
                 .previewDevice("iPhone SE (3rd generation)")
         }
