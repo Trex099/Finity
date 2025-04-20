@@ -28,16 +28,22 @@ struct ContentNavigationView: View {
                             Image(systemName: tab.icon)
                                 .font(.system(size: 22))
                                 .foregroundColor(selectedTab == tab ? .white : .gray)
+                            
+                            Text(tab.rawValue)
+                                .font(.caption)
+                                .foregroundColor(selectedTab == tab ? .white : .gray)
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 8)
                     }
                 }
             }
             .background(
-                Color.black.opacity(0.8)
-                    .background(Material.ultraThinMaterial)
-                    .ignoresSafeArea(edges: .bottom)
+                ZStack {
+                    Color.black.opacity(0.8)
+                    BlurView(style: .systemMaterialDark)
+                }
+                .ignoresSafeArea(edges: .bottom)
             )
         }
         .sheet(isPresented: $showSearchView) { 
