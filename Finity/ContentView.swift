@@ -21,8 +21,8 @@ struct ContentView: View {
         Group {
             // Use the service's published property
             if jellyfinService.isAuthenticated {
-                // Now there's only one ContentNavigationView in scope
-                ContentNavigationView()
+                // Use the correct view name that contains the TabView logic
+                MainContentNavigationView()
                     .environmentObject(jellyfinService)
                     .environmentObject(navigationState)
             } else {
