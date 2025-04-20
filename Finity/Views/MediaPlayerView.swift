@@ -40,7 +40,7 @@ struct MediaPlayerView: View {
             // Custom Controls Overlay
             if showControls && player != nil {
                 CustomPlayerControlsView(
-                    itemTitle: item.title,
+                    itemTitle: item.name,
                     isPlaying: $isPlaying,
                     currentTime: $currentTime,
                     totalDuration: $totalDuration,
@@ -70,16 +70,22 @@ struct MediaPlayerView: View {
         let avPlayer = AVPlayer(url: url)
         self.player = avPlayer
         
-        // Add observer for time updates
-        let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-        timeObserverToken = avPlayer.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak avPlayer] time in
-            guard let currentItem = avPlayer?.currentItem else { return }
-            if !isSeeking { // Only update time if user is not actively scrubbing
-                currentTime = time.seconds
-            }
-            if totalDuration.isNaN || totalDuration <= 0, currentItem.duration.seconds > 0 {
-                totalDuration = currentItem.duration.seconds
-            }
+        // Listen for player item status changes
+        NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: avPlayer.currentItem, queue: .main) { [weak self] _ in
+            self?.isPlaying = false
+        }
+        
+        // Get total duration
+        if let playerItem = avPlayer.currentItem {
+            let duration = playerItem.asset.duration
+            totalDuration = CMTimeGetSeconds(duration)
+        }
+        
+        // Setup time observer
+        let interval = CMTime(seconds: 1, preferredTimescale: 1)
+        timeObserverToken = avPlayer.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
+            guard let self = self, !self.isSeeking else { return }
+            self.currentTime = time.seconds
         }
         
         // Start playback automatically
@@ -200,19 +206,28 @@ struct CustomPlayerControlsView: View {
             VStack {
                 // Top Bar (Close Button, Title)
                 HStack {
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(.white)
+                            .font(.title2)
+                            .padding(8)
+                            .background(Circle().fill(Color.black.opacity(0.5)))
+                    }
+                    .padding(.leading)
+                    
+                    Spacer()
+                    
                     Text(itemTitle)
                         .foregroundColor(.white)
                         .font(.headline)
                         .lineLimit(1)
+                        .padding(.horizontal)
+                    
                     Spacer()
-                    Button(action: onClose) {
-                        Image(systemName: "xmark")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                            .padding(10)
-                    }
                 }
-                .padding(.horizontal)
+                .padding(.top, 12)
                 
                 Spacer() // Push controls to center and bottom
                 
