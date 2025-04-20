@@ -5,21 +5,16 @@ struct ContentNavigationView: View {
     @State private var showSearchView = false // State to control search presentation
     
     var body: some View {
-        ZStack(alignment: .bottom) { // Align ZStack content to bottom
-            // Main content area fills the space
-            VStack(spacing: 0) {
-                currentTabView(showSearchView: $showSearchView)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            
-            // Bottom tab bar positioned at the bottom
-            BottomTabBar(selectedTab: $selectedTab)
-                // Apply padding here to lift the bar's content area
-                // The background applied *inside* BottomTabBar will ignore this padding
-                .padding(.bottom, UIApplication.shared.windows.first?.safeAreaInsets.bottom ?? 0)
+        // Main content container
+        VStack(spacing: 0) {
+            currentTabView(showSearchView: $showSearchView)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color.black.edgesIgnoringSafeArea(.all))
-        .edgesIgnoringSafeArea(.bottom) // Let the ZStack manage bottom edge
+        .safeAreaInset(edge: .bottom, spacing: 0) { // Use safeAreaInset for the bar
+            BottomTabBar(selectedTab: $selectedTab)
+        }
+        .edgesIgnoringSafeArea(.bottom) // Allow main content AND inset background to go edge-to-edge
         .sheet(isPresented: $showSearchView) { 
             SearchView()
                 .preferredColorScheme(.dark)

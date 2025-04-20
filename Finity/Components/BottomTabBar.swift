@@ -16,60 +16,52 @@ enum TabItem: String, CaseIterable {
 
 struct BottomTabBar: View {
     @Binding var selectedTab: TabItem
-    let barContentHeight: CGFloat = 60 // Increased content height slightly
+    // Total desired height of the visible blurred bar (including padding above/below icons)
+    let totalBarHeight: CGFloat = 65
 
     var body: some View {
-        GeometryReader { geometry in // Use geometry ONLY for safe area bottom
-            HStack(spacing: 0) {
-                ForEach(TabItem.allCases, id: \.self) { tab in
-                    Button(action: {
-                        withAnimation {
-                            selectedTab = tab
-                        }
-                    }) {
-                        VStack(spacing: 4) {
-                            Image(systemName: tab.icon)
-                                .font(.system(size: 24)) // Slightly larger icon
-                                .foregroundColor(selectedTab == tab ? .white : .gray)
-                            
-                            Text(tab.rawValue)
-                                .font(.system(size: 11, weight: .medium)) // Slightly smaller text
-                                .foregroundColor(selectedTab == tab ? .white : .gray)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: barContentHeight) // Content area height
+        HStack(spacing: 0) {
+            ForEach(TabItem.allCases, id: \.self) { tab in
+                Button(action: {
+                    withAnimation {
+                        selectedTab = tab
                     }
-                    .accessibility(identifier: "tab_\(tab.rawValue)")
+                }) {
+                    VStack(spacing: 4) {
+                        Image(systemName: tab.icon)
+                            .font(.system(size: 24))
+                            .foregroundColor(selectedTab == tab ? .white : .gray)
+                        
+                        Text(tab.rawValue)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(selectedTab == tab ? .white : .gray)
+                    }
+                    .frame(maxWidth: .infinity)
+                    // Ensure content is centered within the button frame
+                    .frame(height: totalBarHeight)
                 }
+                .accessibility(identifier: "tab_\(tab.rawValue)")
             }
-            .frame(height: barContentHeight) // HStack has fixed content height
-            .background(BlurView(style: .systemMaterialDark)) // Background covers content area
-            .padding(.bottom, geometry.safeAreaInsets.bottom) // Pad the whole bar up
         }
-         // Allow the GeometryReader (and thus the padded bar) to determine its own height
-         // which will be barContentHeight + safeAreaInsets.bottom
-        .edgesIgnoringSafeArea(.bottom) // Let the background potentially extend visually if needed by OS
-
+        // The HStack defines the visual height of the bar
+        .frame(height: totalBarHeight)
+        .background(BlurView(style: .systemMaterialDark)) // Background applied directly
+        // No safe area handling here - container will manage placement
     }
 }
 
-// Keep BlurView definition if needed elsewhere, or remove if only used here
+// Keep BlurView
 struct BlurView: UIViewRepresentable {
     var style: UIBlurEffect.Style
-
-    func makeUIView(context: Context) -> UIVisualEffectView {
-        return UIVisualEffectView(effect: UIBlurEffect(style: style))
-    }
-
-    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {
-        uiView.effect = UIBlurEffect(style: style)
-    }
+    func makeUIView(context: Context) -> UIVisualEffectView { UIVisualEffectView(effect: UIBlurEffect(style: style)) }
+    func updateUIView(_ uiView: UIVisualEffectView, context: Context) { uiView.effect = UIBlurEffect(style: style) }
 }
 
 struct BottomTabBar_Previews: PreviewProvider {
     static var previews: some View {
         VStack {
             Spacer()
+            // Preview the bar appearance directly
             BottomTabBar(selectedTab: .constant(.home))
         }
         .background(Color.gray)
