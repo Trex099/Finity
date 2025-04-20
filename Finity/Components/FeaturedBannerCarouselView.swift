@@ -72,6 +72,7 @@ struct FeaturedBannerCarouselView: View {
 
 // Individual Item View for the Banner
 struct FeaturedBannerItemView: View {
+    @EnvironmentObject var jellyfinService: JellyfinService // Inject service for image URL
     let item: MediaItem
     let itemWidth: CGFloat
     let itemHeight: CGFloat
@@ -80,27 +81,45 @@ struct FeaturedBannerItemView: View {
     
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            // Background Image (using placeholder for now)
-            // TODO: Replace with AsyncImage or similar for real URLs
-            Image(item.posterPath ?? "darkknight") // Use posterPath or fallback
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: itemWidth, height: itemHeight)
-                .clipped() // Clip image to bounds
-                // Add a gradient overlay for text visibility
-                .overlay(
-                    LinearGradient(
-                        gradient: Gradient(colors: [.clear, .clear, .black.opacity(0.8), .black]),
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
+            // Use AsyncImage with the imageUrl helper
+            AsyncImage(url: jellyfinService.imageUrl(for: item.id, tag: item.primaryImageTag, type: .primary, maxHeight: 600)) { phase in // Request a decent res image
+                switch phase {
+                case .success(let image):
+                    image.resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: itemWidth, height: itemHeight)
+                case .failure(_):
+                    Image(systemName: "photo") // Placeholder on failure
+                         .resizable()
+                         .scaledToFit()
+                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                         .background(Color.gray.opacity(0.3))
+                         .frame(width: itemWidth, height: itemHeight)
+                case .empty:
+                     ProgressView() // Placeholder while loading
+                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                         .background(Color.gray.opacity(0.1))
+                         .frame(width: itemWidth, height: itemHeight)
+                @unknown default:
+                    EmptyView()
+                }
+            }
+            .clipped() // Clip image to bounds
+            // Gradient overlay
+            .overlay(
+                LinearGradient(
+                    gradient: Gradient(colors: [.clear, .clear, .black.opacity(0.8), .black]),
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
+            )
             
             // Content Overlay (Title, Description, Buttons)
             VStack(alignment: .leading, spacing: 12) {
                 Spacer() // Push content to bottom
                 
-                Text(item.title)
+                // Use item.name and item.overview from new model
+                Text(item.name)
                     .font(.system(size: 36, weight: .bold))
                     .foregroundColor(.white)
                     .shadow(radius: 3)
@@ -108,7 +127,7 @@ struct FeaturedBannerItemView: View {
                 Text(item.overview ?? "No description available.")
                     .font(.headline)
                     .foregroundColor(.white.opacity(0.9))
-                    .lineLimit(2) // Limit description lines
+                    .lineLimit(2)
                     .shadow(radius: 2)
                 
                 HStack(spacing: 15) {
