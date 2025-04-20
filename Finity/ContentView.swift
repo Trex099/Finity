@@ -9,7 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        HomeView()
+        ContentNavigationView()
             .preferredColorScheme(.dark)
             .ignoresSafeArea(.keyboard) // Prevent keyboard from causing layout issues
     }

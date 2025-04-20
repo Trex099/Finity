@@ -5,7 +5,6 @@ struct HomeView: View {
         baseURL: "https://your-jellyfin-server.com",
         apiKey: "your-api-key"
     )
-    @State private var selectedTab: TabItem = .home
     @State private var selectedItem: MediaItem?
     @State private var showPlayer = false
     
@@ -29,71 +28,46 @@ struct HomeView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            ZStack {
-                // Dark background
-                Color.black.edgesIgnoringSafeArea(.all)
+            VStack(spacing: 0) {
+                // Top metallic title
+                TopTitleBar()
+                    .padding(.top, geometry.safeAreaInsets.top)
                 
-                // Main content
-                VStack(spacing: 0) {
-                    // Top metallic title
-                    TopTitleBar()
-                        .padding(.top, geometry.safeAreaInsets.top)
-                    
-                    // Scrollable content
-                    ScrollView {
-                        VStack(spacing: 0) {
-                            // Featured content
-                            if !tempMovies.isEmpty {
-                                FeaturedContentView(item: tempMovies[0])
-                                    .onTapGesture {
-                                        selectedItem = tempMovies[0]
-                                        showPlayer = true
-                                    }
-                                    .accessibility(identifier: "featured_content")
-                            }
-                            
-                            // Content rows
-                            ForEach(0..<categories.count, id: \.self) { index in
-                                // Create a subset of movies for each category (cycling through the temp movies)
-                                let rowMovies = Array(0..<4).map { i in
-                                    tempMovies[(index + i) % tempMovies.count]
+                // Scrollable content
+                ScrollView {
+                    VStack(spacing: 0) {
+                        // Featured content
+                        if !tempMovies.isEmpty {
+                            FeaturedContentView(item: tempMovies[0])
+                                .onTapGesture {
+                                    selectedItem = tempMovies[0]
+                                    showPlayer = true
                                 }
-                                let row = MediaRow(title: categories[index], items: rowMovies)
-                                MediaRowView(row: row)
-                                    .accessibility(identifier: "media_row_\(index)")
-                            }
-                            
-                            // Add extra space at bottom
-                            Spacer(minLength: geometry.safeAreaInsets.bottom + 70)
+                                .accessibility(identifier: "featured_content")
                         }
+                        
+                        // Content rows
+                        ForEach(0..<categories.count, id: \.self) { index in
+                            // Create a subset of movies for each category (cycling through the temp movies)
+                            let rowMovies = Array(0..<4).map { i in
+                                tempMovies[(index + i) % tempMovies.count]
+                            }
+                            let row = MediaRow(title: categories[index], items: rowMovies)
+                            MediaRowView(row: row)
+                                .accessibility(identifier: "media_row_\(index)")
+                        }
+                        
+                        // Add extra space for bottom tab bar
+                        Spacer(minLength: geometry.safeAreaInsets.bottom + 70)
                     }
-                    
-                    // Bottom tab bar
-                    BottomTabBar(selectedTab: $selectedTab)
-                        .padding(.bottom, geometry.safeAreaInsets.bottom)
                 }
-                .edgesIgnoringSafeArea(.vertical)
             }
+            .background(Color.black)
             .fullScreenCover(isPresented: $showPlayer, content: {
                 if let item = selectedItem {
                     MediaPlayerView(item: item)
                 }
             })
-        }
-    }
-    
-    // Function to determine which view to show based on selected tab
-    @ViewBuilder
-    private func currentTabView() -> some View {
-        switch selectedTab {
-        case .home:
-            Text("Home Tab")
-        case .search:
-            Text("Search Tab")
-        case .favorites:
-            Text("Favorites Tab")
-        case .settings:
-            Text("Settings Tab")
         }
     }
 }
@@ -110,4 +84,5 @@ struct HomeView_Previews: PreviewProvider {
                 .previewDevice("iPhone SE (3rd generation)")
         }
     }
+} 
 } 
