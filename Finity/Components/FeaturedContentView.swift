@@ -110,7 +110,7 @@ struct FeaturedContentView_Previews: PreviewProvider {
                 id: "1",
                 title: "Inception",
                 posterPath: "inception",
-                type: .movie,
+                type: MediaType.movie,
                 year: "2010",
                 rating: 8.8,
                 overview: "A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O."
@@ -121,7 +121,7 @@ struct FeaturedContentView_Previews: PreviewProvider {
                 id: "1",
                 title: "Inception",
                 posterPath: "inception",
-                type: .movie,
+                type: MediaType.movie,
                 year: "2010",
                 rating: 8.8,
                 overview: "A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O."
