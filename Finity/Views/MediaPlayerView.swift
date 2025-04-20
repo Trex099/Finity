@@ -7,6 +7,7 @@ struct MediaPlayerView: View {
     let item: MediaItem
     @EnvironmentObject var jellyfinService: JellyfinService
     @Environment(\.dismiss) var dismiss
+    @Environment(\.presentationMode) var presentationMode
     
     // Player state
     @State private var player: AVPlayer? = nil
@@ -20,6 +21,7 @@ struct MediaPlayerView: View {
     @State private var error: String? = nil
     @State private var isLoading = false
     @State private var currentItemId: String? = nil
+    @State private var autoExitOnFinish = true
     
     var body: some View {
         ZStack {
@@ -171,7 +173,7 @@ struct MediaPlayerView: View {
     }
     
     // Helper function to construct the final URL
-    private func constructPlaybackURL(from source: MediaSourceInfo, itemId: String) -> URL? {
+    private func constructPlaybackURL(source: MediaSourceInfo, itemId: String) -> URL? {
         guard let path = source.path else { 
             print("Error: MediaSourceInfo has no path.")
             return nil 
@@ -225,43 +227,48 @@ struct MediaPlayerView: View {
             return nil
         }
         
-        // Standard transcoding endpoint (more reliable than /master.m3u8)
-        let path = "/Videos/\(itemId)/stream"
-        let fullPath = serverURL + path
+        // Standard transcoding endpoint for Jellyfin
+        let path = "Videos/\(itemId)/stream"
+        var fullURLString = serverURL + path
         
-        var components = URLComponents(string: fullPath)
-        var queryItems = [URLQueryItem]()
+        // Remove any double slashes (except for http://)
+        if fullURLString.contains("://") {
+            let parts = fullURLString.split(separator: "://", maxSplits: 1)
+            if parts.count == 2 {
+                let protocol = parts[0]
+                var remainder = String(parts[1])
+                remainder = remainder.replacingOccurrences(of: "//", with: "/")
+                fullURLString = "\(protocol)://\(remainder)"
+            }
+        }
         
-        // Authentication params
-        queryItems.append(URLQueryItem(name: "api_key", value: token))
-        queryItems.append(URLQueryItem(name: "deviceId", value: UIDevice.current.identifierForVendor?.uuidString ?? ""))
+        guard var components = URLComponents(string: fullURLString) else {
+            print("Error: Could not create URL components from \(fullURLString)")
+            return nil
+        }
         
-        // Required transcoding parameters for Jellyfin
-        queryItems.append(URLQueryItem(name: "container", value: "ts"))            // Transport stream container
-        queryItems.append(URLQueryItem(name: "videoCodec", value: "h264"))         // Video codec
-        queryItems.append(URLQueryItem(name: "audioCodec", value: "aac"))          // Audio codec
-        queryItems.append(URLQueryItem(name: "transcodingContainer", value: "ts")) // Transcoding container
-        queryItems.append(URLQueryItem(name: "maxWidth", value: "1920"))           // Max width
-        queryItems.append(URLQueryItem(name: "maxHeight", value: "1080"))          // Max height
-        queryItems.append(URLQueryItem(name: "videoBitRate", value: "8000000"))    // Video bitrate
-        queryItems.append(URLQueryItem(name: "audioBitRate", value: "192000"))     // Audio bitrate
-        queryItems.append(URLQueryItem(name: "maxAudioChannels", value: "2"))      // Audio channels
-        queryItems.append(URLQueryItem(name: "startTimeTicks", value: "0"))        // Start at beginning
-        queryItems.append(URLQueryItem(name: "subtitleMethod", value: "Encode"))   // Subtitle method
-        queryItems.append(URLQueryItem(name: "enableDirectPlay", value: "false"))  // Force transcoding
-        queryItems.append(URLQueryItem(name: "enableDirectStream", value: "false"))// Force transcoding
-        queryItems.append(URLQueryItem(name: "TranscodingMaxAudioChannels", value: "2"))
+        // Add all required transcoding parameters
+        var queryItems = [
+            URLQueryItem(name: "api_key", value: token),
+            URLQueryItem(name: "deviceId", value: UIDevice.current.identifierForVendor?.uuidString ?? ""),
+            URLQueryItem(name: "PlaySessionId", value: UUID().uuidString),
+            URLQueryItem(name: "MediaSourceId", value: itemId),
+            URLQueryItem(name: "audioCodec", value: "aac"),
+            URLQueryItem(name: "videoCodec", value: "h264"),
+            URLQueryItem(name: "container", value: "ts"),
+            URLQueryItem(name: "transcodingContainer", value: "ts"),
+            URLQueryItem(name: "maxAudioChannels", value: "2"),
+            URLQueryItem(name: "maxVideoBitDepth", value: "8"),
+            URLQueryItem(name: "requireAvc", value: "true"),
+            URLQueryItem(name: "subtitleMethod", value: "Encode"),
+            URLQueryItem(name: "maxWidth", value: "1920"),
+            URLQueryItem(name: "maxHeight", value: "1080")
+        ]
         
-        // Streaming format parameters (HLS)
-        queryItems.append(URLQueryItem(name: "MediaSourceId", value: itemId))      // Same as itemId typically
-        queryItems.append(URLQueryItem(name: "PlaySessionId", value: UUID().uuidString))
-        queryItems.append(URLQueryItem(name: "static", value: "false"))            // Not static (HLS)
-        queryItems.append(URLQueryItem(name: "StreamOptions", value: "{\"RequireAvc\":true}"))
+        components.queryItems = queryItems
         
-        components?.queryItems = queryItems
-        
-        print("Constructed manual HLS streaming URL: \(components?.url?.absoluteString ?? "Invalid URL")")
-        return components?.url
+        print("Constructed manual HLS streaming URL: \(components.url?.absoluteString ?? "Invalid URL")")
+        return components.url
     }
     
     // Helper to load duration asynchronously
