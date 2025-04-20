@@ -94,7 +94,7 @@ struct HomeView: View {
     private var contentScrollView: some View {
         // Note: GeometryReader context is lost here. If needed, pass size down.
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) { // Align sections to leading
+            LazyVStack(alignment: .leading, spacing: 0) { // <-- CHANGE VStack to LazyVStack
                 // Banner uses latestItems from service
                 FeaturedBannerCarouselView(
                     items: featuredItems, // Use local state updated via onReceive
