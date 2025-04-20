@@ -189,9 +189,16 @@ struct MediaPlayerView: View {
         let playerItem = AVPlayerItem(url: url)
         player.replaceCurrentItem(with: playerItem)
         
-        // Get duration
-        let durationCMTime = playerItem.asset.duration
-        duration = CMTimeGetSeconds(durationCMTime)
+        // Get duration using the modern API
+        Task {
+            do {
+                let durationCMTime = try await playerItem.asset.load(.duration)
+                duration = CMTimeGetSeconds(durationCMTime)
+            } catch {
+                print("Failed to load duration: \(error)")
+                duration = 0
+            }
+        }
         
         // Set up time observer
         player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.5, preferredTimescale: 600), queue: DispatchQueue.main) { time in
