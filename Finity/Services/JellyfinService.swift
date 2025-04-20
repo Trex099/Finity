@@ -635,4 +635,53 @@ class JellyfinService: ObservableObject {
          return "MediaBrowser Client=\"\(appName)\", Device=\"iOS\", DeviceName=\"\(deviceName)\", Version=\"\(appVersion)\", Token=\"\(accessToken ?? "")\", DeviceId=\"\(deviceId)\""
      }
 
+    // Validate and sanitize server URL
+    func sanitizeServerURL(_ url: String) -> String {
+        var sanitized = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Add https:// if protocol is missing
+        if !sanitized.lowercased().hasPrefix("http://") && !sanitized.lowercased().hasPrefix("https://") {
+            sanitized = "https://" + sanitized
+        }
+        
+        // Ensure URL ends with a trailing slash
+        if !sanitized.hasSuffix("/") {
+            sanitized += "/"
+        }
+        
+        return sanitized
+    }
+
+    // MARK: - Authentication
+    func loadCredentials() {
+        // ... existing code ...
+        
+        // If credentials exist, set them
+        if let savedServerURL = serverURLData, let savedUsername = usernameData,
+           let savedUserId = userIdData, let savedAccessToken = accessTokenData {
+            // Sanitize the server URL
+            let sanitizedURL = sanitizeServerURL(String(decoding: savedServerURL, as: UTF8.self))
+            
+            self.serverURL = sanitizedURL
+            self.username = String(decoding: savedUsername, as: UTF8.self)
+            self.userId = String(decoding: savedUserId, as: UTF8.self)
+            self.accessToken = String(decoding: savedAccessToken, as: UTF8.self)
+            
+            print("Credentials loaded from Keychain for user: \(self.userId ?? "unknown")")
+        } else {
+            print("No credentials found in Keychain.")
+        }
+    }
+    
+    // Update saveCredentials function
+    func saveCredentials(serverURL: String, username: String, userId: String, accessToken: String) {
+        // Sanitize the server URL
+        let sanitizedURL = sanitizeServerURL(serverURL)
+        
+        // ... existing code ...
+        // When setting the keychain data, use the sanitized URL
+        let serverURLData = sanitizedURL.data(using: .utf8)
+        // ... rest of existing code ...
+    }
+
 } 
