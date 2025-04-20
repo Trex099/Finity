@@ -14,7 +14,9 @@ struct ContentNavigationView: View {
             
             // Bottom tab bar positioned at the bottom
             BottomTabBar(selectedTab: $selectedTab)
-                // No padding needed here now, bar handles its own safe area
+                // Apply padding here to lift the bar's content area
+                // The background applied *inside* BottomTabBar will ignore this padding
+                .padding(.bottom, UIApplication.shared.windows.first?.safeAreaInsets.bottom ?? 0)
         }
         .background(Color.black.edgesIgnoringSafeArea(.all))
         .edgesIgnoringSafeArea(.bottom) // Let the ZStack manage bottom edge

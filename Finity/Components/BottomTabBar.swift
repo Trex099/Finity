@@ -16,49 +16,36 @@ enum TabItem: String, CaseIterable {
 
 struct BottomTabBar: View {
     @Binding var selectedTab: TabItem
-    let barContentHeight: CGFloat = 55 // Keep increased height
+    let barContentHeight: CGFloat = 55 // Fixed height for the icons/text area
 
     var body: some View {
-        GeometryReader { geometry in
-            // Calculate total height required including safe area
-            let totalHeight = barContentHeight + geometry.safeAreaInsets.bottom
-            
-            HStack(spacing: 0) {
-                ForEach(TabItem.allCases, id: \.self) { tab in
-                    Button(action: {
-                        withAnimation {
-                            selectedTab = tab
-                        }
-                    }) {
-                        VStack(spacing: 4) {
-                            Spacer() // Push content down within the VStack
-                            Image(systemName: tab.icon)
-                                .font(.system(size: 22))
-                                .foregroundColor(selectedTab == tab ? .white : .gray)
-                            
-                            Text(tab.rawValue)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(selectedTab == tab ? .white : .gray)
-                            // Add padding *only* to the bottom of the VStack content
-                            // Effectively pushing the content upwards relative to the bar's bottom edge
-                            Spacer().frame(height: geometry.safeAreaInsets.bottom / 2) // Adjust spacing
-                             // Add slightly less than full safe area padding inside
-
-                        }
-                        .frame(width: geometry.size.width / CGFloat(TabItem.allCases.count))
-                        .frame(height: totalHeight) // Button takes full calculated height
-                       // .padding(.bottom, geometry.safeAreaInsets.bottom) // Padding applied inside VStack now
-
+        // HStack contains the buttons
+        HStack(spacing: 0) {
+            ForEach(TabItem.allCases, id: \.self) { tab in
+                Button(action: {
+                    withAnimation {
+                        selectedTab = tab
                     }
-                    .accessibility(identifier: "tab_\(tab.rawValue)")
+                }) {
+                    VStack(spacing: 4) {
+                        Image(systemName: tab.icon)
+                            .font(.system(size: 22))
+                            .foregroundColor(selectedTab == tab ? .white : .gray)
+                        
+                        Text(tab.rawValue)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(selectedTab == tab ? .white : .gray)
+                    }
+                    // Ensure button content is centered and takes full width/height of the bar content area
+                    .frame(maxWidth: .infinity)
+                    .frame(height: barContentHeight)
                 }
+                .accessibility(identifier: "tab_\(tab.rawValue)")
             }
-            .frame(width: geometry.size.width, height: totalHeight) // HStack uses total height
-            .background(BlurView(style: .systemMaterialDark).edgesIgnoringSafeArea(.bottom)) // Background ignores safe area
         }
-        // The view container should have the final total height
-        .edgesIgnoringSafeArea(.bottom)
-
+        .frame(height: barContentHeight) // Set the fixed height for the content
+        .background(BlurView(style: .systemMaterialDark)) // Apply background to the content area
+        // Safe area padding will be applied by the container view
     }
 }
 
@@ -67,8 +54,11 @@ struct BottomTabBar_Previews: PreviewProvider {
         VStack {
             Spacer()
             BottomTabBar(selectedTab: .constant(.home))
+                // Simulate safe area in preview
+                .padding(.bottom, 34)
         }
-        .background(Color.gray) // Use a different color to see safe area
+        .background(Color.gray)
+        .edgesIgnoringSafeArea(.bottom)
         .preferredColorScheme(.dark)
     }
 }
