@@ -1,13 +1,14 @@
 import SwiftUI
 
 struct FavoritesView: View {
-    // Expanded Temporary favorites data
-    private let favoriteMovies = [
-        MediaItem(id: "1", title: "Inception", posterPath: "inception", type: .movie, year: "2010", rating: 8.8, overview: "A thief who steals corporate secrets through the use of dream-sharing technology."),
-        MediaItem(id: "2", title: "The Dark Knight", posterPath: "darkknight", type: .movie, year: "2008", rating: 9.0, overview: "Batman faces his greatest challenge yet."),
-        MediaItem(id: "4", title: "The Matrix", posterPath: "darkknight", type: .movie, year: "1999", rating: 8.7, overview: "A computer hacker learns about the true nature of reality."),
-        MediaItem(id: "7", title: "Forrest Gump", posterPath: "inception", type: .movie, year: "1994", rating: 8.8, overview: "Perspectives of an Alabama man with an IQ of 75."),
-        MediaItem(id: "8", title: "Gladiator", posterPath: "darkknight", type: .movie, year: "2000", rating: 8.5, overview: "A former Roman General sets out to exact vengeance.")
+    // Updated Temporary favorites data using the new MediaItem structure
+    // TODO: Replace this with actual favorite fetching from JellyfinService
+    private let favoriteMovies: [MediaItem] = [
+        MediaItem(id: "1", name: "Inception", serverId: nil, type: "Movie", overview: "A thief who steals corporate secrets through the use of dream-sharing technology.", productionYear: 2010, communityRating: 8.8, officialRating: "PG-13", imageTags: ["Primary":"inceptionTag"], backdropImageTags: [], userData: UserData(playbackPositionTicks: 0, playCount: 1, isFavorite: true, played: true, playedPercentage: 100), genres: ["Action", "Sci-Fi"]),
+        MediaItem(id: "2", name: "The Dark Knight", serverId: nil, type: "Movie", overview: "Batman faces his greatest challenge yet.", productionYear: 2008, communityRating: 9.0, officialRating: "PG-13", imageTags: ["Primary":"darkknightTag"], backdropImageTags: [], userData: UserData(playbackPositionTicks: 0, playCount: 1, isFavorite: true, played: true, playedPercentage: 100), genres: ["Action", "Drama"]),
+        MediaItem(id: "4", name: "The Matrix", serverId: nil, type: "Movie", overview: "A computer hacker learns about the true nature of reality.", productionYear: 1999, communityRating: 8.7, officialRating: "R", imageTags: ["Primary":"darkknightTag"], backdropImageTags: [], userData: UserData(playbackPositionTicks: 0, playCount: 0, isFavorite: true, played: false, playedPercentage: 0), genres: ["Action", "Sci-Fi"]),
+        MediaItem(id: "7", name: "Forrest Gump", serverId: nil, type: "Movie", overview: "Perspectives of an Alabama man with an IQ of 75.", productionYear: 1994, communityRating: 8.8, officialRating: "PG-13", imageTags: ["Primary":"inceptionTag"], backdropImageTags: [], userData: UserData(playbackPositionTicks: 0, playCount: 0, isFavorite: true, played: false, playedPercentage: 0), genres: ["Comedy", "Drama"]),
+        MediaItem(id: "8", name: "Gladiator", serverId: nil, type: "Movie", overview: "A former Roman General sets out to exact vengeance.", productionYear: 2000, communityRating: 8.5, officialRating: "R", imageTags: ["Primary":"darkknightTag"], backdropImageTags: [], userData: UserData(playbackPositionTicks: 0, playCount: 1, isFavorite: true, played: true, playedPercentage: 100), genres: ["Action", "Drama"])
     ]
     @Binding var showSearchView: Bool // Binding from ContentNavigationView
     @State private var selectedItemForDetail: MediaItem? // State for detail view
@@ -70,9 +71,10 @@ struct FavoritesView: View {
             }
             .edgesIgnoringSafeArea(.top)
             .background(Color.black.edgesIgnoringSafeArea(.all))
-            .sheet(item: $selectedItemForDetail) { item in // Present Detail View
-                 MediaDetailView(item: item)
+            .sheet(item: $selectedItemForDetail) { item in 
+                 MediaDetailView(itemId: item.id)
                     .preferredColorScheme(.dark)
+                    .environmentObject(jellyfinService)
             }
         }
     }
