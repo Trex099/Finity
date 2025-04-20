@@ -24,39 +24,14 @@ struct ContentNavigationView: View {
     private var tabView: some View {
         switch selectedTab {
         case .home:
-            HomeTabView()
+            HomeView()
         case .search:
-            SearchTabView()
+            SearchView()
         case .favorites:
-            FavoritesTabView()
+            FavoritesView()
         case .settings:
-            SettingsTabView()
+            SettingsView()
         }
-    }
-}
-
-// Wrapper views to avoid ambiguous init issues
-struct HomeTabView: View {
-    var body: some View {
-        HomeView()
-    }
-}
-
-struct SearchTabView: View {
-    var body: some View {
-        SearchView()
-    }
-}
-
-struct FavoritesTabView: View {
-    var body: some View {
-        FavoritesView()
-    }
-}
-
-struct SettingsTabView: View {
-    var body: some View {
-        SettingsView()
     }
 }
 
