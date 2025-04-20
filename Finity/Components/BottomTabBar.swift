@@ -57,7 +57,6 @@ struct BottomTabBar: View {
             .background(BlurView(style: .systemMaterialDark).edgesIgnoringSafeArea(.bottom)) // Background ignores safe area
         }
         // The view container should have the final total height
-        .frame(height: totalHeight)
         .edgesIgnoringSafeArea(.bottom)
 
     }
