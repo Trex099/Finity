@@ -10,6 +10,7 @@
 		E9FE38612DB5860A00772703 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = E9FE38602DB5860A00772703 /* FirebaseAnalytics */; };
 		E9FE38632DB5860A00772703 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = E9FE38622DB5860A00772703 /* FirebaseCore */; };
 		E9FE38652DB5860A00772703 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = E9FE38642DB5860A00772703 /* FirebaseFirestore */; };
+		E9FE38672DB58D0100772703 /* FirebaseFirestoreSwift in Frameworks */ = {isa = PBXBuildFile; productRef = E9FE38662DB58D0100772703 /* FirebaseFirestoreSwift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -602,6 +603,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E9FE385F2DB5860A00772703 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseFirestore;
+		};
+		E9FE38662DB58D0100772703 /* FirebaseFirestoreSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9FE385F2DB5860A00772703 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestoreSwift;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
