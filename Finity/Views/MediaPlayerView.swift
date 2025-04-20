@@ -72,21 +72,25 @@ struct MediaPlayerView: View {
             let playbackInfo = try await jellyfinService.fetchPlaybackInfo(itemId: item.id)
             
             // Choose the best media source
-            guard let selectedSource = chooseBestMediaSource(from: playbackInfo.mediaSources) else {
-                print("Error: No suitable media source found for playback.")
-                // TODO: Show error state to user (e.g., set an @State error message)
-                return
+            var url: URL?
+            if let selectedSource = chooseBestMediaSource(from: playbackInfo.mediaSources) {
+                // Construct URL from the chosen source
+                url = constructPlaybackURL(from: selectedSource)
+            } else {
+                 // FALLBACK: No suitable direct source found, try constructing an HLS URL manually
+                 print("Fallback: Attempting to construct HLS URL manually.")
+                 url = constructManualHLSURL(itemId: item.id)
             }
             
-            // Construct the final URL
-            guard let url = constructPlaybackURL(from: selectedSource) else {
-                print("Error: Could not construct playback URL from selected source.")
-                // TODO: Show error state to user
-                return
+            // Ensure we have a valid URL
+            guard let finalURL = url else {
+                 print("Error: Could not determine a valid playback URL.")
+                 // TODO: Show error state
+                 return
             }
             
-            print("Setting up player with URL: \(url)")
-            let avPlayer = AVPlayer(url: url)
+            print("Setting up player with URL: \(finalURL)")
+            let avPlayer = AVPlayer(url: finalURL)
             
             // Assign player first
             self.player = avPlayer
@@ -199,6 +203,29 @@ struct MediaPlayerView: View {
              print("Error: MediaSourceInfo path '\(path)' is not a recognized web path or URL.")
              return nil
         }
+    }
+    
+    // New helper to manually construct an HLS URL as a fallback
+    private func constructManualHLSURL(itemId: String) -> URL? {
+        guard let serverURL = jellyfinService.serverURL, 
+              let token = jellyfinService.accessToken else { 
+            print("Error constructing manual HLS URL: Missing serverURL or accessToken.")
+            return nil
+        }
+        
+        // Standard HLS endpoint format (may vary slightly based on server version/config)
+        let path = "/Videos/\(itemId)/master.m3u8"
+        let fullPath = serverURL + path
+        
+        var components = URLComponents(string: fullPath)
+        var queryItems = components?.queryItems ?? []
+        queryItems.append(URLQueryItem(name: "api_key", value: token))
+        queryItems.append(URLQueryItem(name: "deviceId", value: UIDevice.current.identifierForVendor?.uuidString ?? ""))
+        // Add other parameters if needed, e.g., MediaSourceId=... ?
+        components?.queryItems = queryItems
+        
+        print("Constructed manual HLS URL: \(components?.url?.absoluteString ?? "Invalid URL")")
+        return components?.url
     }
     
     // Helper to load duration asynchronously
