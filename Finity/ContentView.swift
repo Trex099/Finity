@@ -13,14 +13,18 @@ struct ContentView: View {
     
     // No longer need local state for authentication
     // @State private var isAuthenticated = false 
+    
+    // To manage search view state and other navigation state
+    @StateObject private var navigationState = NavigationState()
 
     var body: some View {
         Group {
             // Use the service's published property
             if jellyfinService.isAuthenticated {
-                // Pass the service down to the main navigation view if needed later
-                ContentNavigationView()
-                    .environmentObject(jellyfinService) // Optionally make it available via EnvironmentObject
+                // Use the ContentNavigationView from Views directory
+                Views.ContentNavigationView()
+                    .environmentObject(jellyfinService)
+                    .environmentObject(navigationState)
             } else {
                 // Pass the service to the LoginView
                 LoginView(jellyfinService: jellyfinService)
