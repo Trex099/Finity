@@ -500,23 +500,66 @@ class JellyfinService: ObservableObject {
 
     // MARK: - Playback
     
-    func getVideoStreamURL(itemId: String) -> URL? {
-        // Check authentication state and required components
-        guard isAuthenticated, let serverURL = serverURL, let _ = accessToken else { // accessToken is checked but not used here
-            print("Error: Cannot get stream URL, not authenticated or missing server/token.")
-            return nil
+    // New function to get PlaybackInfo
+    func fetchPlaybackInfo(itemId: String) async throws -> PlaybackInfoResponse {
+        guard isAuthenticated, let currentUserID = userID, let serverURL = serverURL else {
+            print("Error: Cannot fetch playback info, not authenticated or missing server/user.")
+            throw URLError(.userAuthenticationRequired)
         }
         
-        // Construct the streaming URL. Note: This doesn't require extra headers usually,
-        // as the access token might be passed as a query parameter if needed by server config,
-        // but often the established session cookie handles it. Check Jellyfin docs if auth fails.
-        // Let's assume direct URL works for now.
-        let urlString = "\(serverURL)/Videos/\(itemId)/stream?static=true" // Add static=true if needed, helps with seeking sometimes
+        // 1. Construct DeviceInfo payload
+        let deviceInfo = createDeviceInfo()
+        guard let httpBody = try? JSONEncoder().encode(deviceInfo) else {
+            print("Error: Failed to encode DeviceInfo")
+            throw URLError(.cannotParseResponse)
+        }
         
-        // Optionally add api_key or token if direct streaming needs it (less common)
-        // urlString += "&api_key=\(accessToken)"
+        // 2. Build POST Request
+        let endpoint = "/Items/\(itemId)/PlaybackInfo?UserId=\(currentUserID)"
+        guard var request = buildAuthenticatedRequest(endpoint: endpoint, method: "POST") else {
+             print("Error: Failed to build PlaybackInfo request")
+            throw URLError(.badURL)
+        }
+        request.httpBody = httpBody
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        return URL(string: urlString)
+        // 3. Perform Network Call using async/await
+        print("Requesting PlaybackInfo for item: \(itemId)")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        // 4. Handle HTTP Response
+        guard let httpResponse = response as? HTTPURLResponse else {
+             print("Error: Invalid HTTP response received for PlaybackInfo.")
+             throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "Invalid HTTP response"])
+         }
+         print("PlaybackInfo Response Status Code: \(httpResponse.statusCode)")
+         guard (200...299).contains(httpResponse.statusCode) else {
+              let errorText = String(data: data, encoding: .utf8) ?? "Unknown API error (Status: \(httpResponse.statusCode))"
+              print("PlaybackInfo API Error Body: \(errorText)")
+              var userInfo: [String: Any] = [NSLocalizedDescriptionKey: errorText]
+              userInfo[NSURLErrorKey] = httpResponse.statusCode
+              throw URLError(.init(rawValue: httpResponse.statusCode), userInfo: userInfo)
+         }
+        
+        // 5. Decode the Response
+        do {
+            let playbackInfo = try JSONDecoder().decode(PlaybackInfoResponse.self, from: data)
+            print("Successfully fetched PlaybackInfo with \(playbackInfo.mediaSources.count) media sources.")
+            return playbackInfo
+        } catch {
+            print("Error decoding PlaybackInfoResponse: \(error)")
+            print("Raw JSON Data: \(String(data: data, encoding: .utf8) ?? "Invalid UTF8 Data")")
+            throw error // Re-throw the decoding error
+        }
+    }
+    
+    // Helper to create DeviceInfo
+    private func createDeviceInfo() -> DeviceInfo {
+        let appName = Bundle.main.infoDictionary?[kCFBundleNameKey as String] as? String ?? "Finity"
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        let deviceName = UIDevice.current.name
+        let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "unknown-device-id"
+        return DeviceInfo(deviceName: deviceName, deviceId: deviceId, appName: appName, appVersion: appVersion)
     }
 
     // MARK: - Request Building & Handling Helpers
