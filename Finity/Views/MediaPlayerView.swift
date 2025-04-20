@@ -213,18 +213,42 @@ struct MediaPlayerView: View {
             return nil
         }
         
-        // Standard HLS endpoint format (may vary slightly based on server version/config)
-        let path = "/Videos/\(itemId)/master.m3u8"
+        // Standard transcoding endpoint (more reliable than /master.m3u8)
+        let path = "/Videos/\(itemId)/stream"
         let fullPath = serverURL + path
         
         var components = URLComponents(string: fullPath)
-        var queryItems = components?.queryItems ?? []
+        var queryItems = [URLQueryItem]()
+        
+        // Authentication params
         queryItems.append(URLQueryItem(name: "api_key", value: token))
         queryItems.append(URLQueryItem(name: "deviceId", value: UIDevice.current.identifierForVendor?.uuidString ?? ""))
-        // Add other parameters if needed, e.g., MediaSourceId=... ?
+        
+        // Required transcoding parameters for Jellyfin
+        queryItems.append(URLQueryItem(name: "container", value: "ts"))            // Transport stream container
+        queryItems.append(URLQueryItem(name: "videoCodec", value: "h264"))         // Video codec
+        queryItems.append(URLQueryItem(name: "audioCodec", value: "aac"))          // Audio codec
+        queryItems.append(URLQueryItem(name: "transcodingContainer", value: "ts")) // Transcoding container
+        queryItems.append(URLQueryItem(name: "maxWidth", value: "1920"))           // Max width
+        queryItems.append(URLQueryItem(name: "maxHeight", value: "1080"))          // Max height
+        queryItems.append(URLQueryItem(name: "videoBitRate", value: "8000000"))    // Video bitrate
+        queryItems.append(URLQueryItem(name: "audioBitRate", value: "192000"))     // Audio bitrate
+        queryItems.append(URLQueryItem(name: "maxAudioChannels", value: "2"))      // Audio channels
+        queryItems.append(URLQueryItem(name: "startTimeTicks", value: "0"))        // Start at beginning
+        queryItems.append(URLQueryItem(name: "subtitleMethod", value: "Encode"))   // Subtitle method
+        queryItems.append(URLQueryItem(name: "enableDirectPlay", value: "false"))  // Force transcoding
+        queryItems.append(URLQueryItem(name: "enableDirectStream", value: "false"))// Force transcoding
+        queryItems.append(URLQueryItem(name: "TranscodingMaxAudioChannels", value: "2"))
+        
+        // Streaming format parameters (HLS)
+        queryItems.append(URLQueryItem(name: "MediaSourceId", value: itemId))      // Same as itemId typically
+        queryItems.append(URLQueryItem(name: "PlaySessionId", value: UUID().uuidString))
+        queryItems.append(URLQueryItem(name: "static", value: "false"))            // Not static (HLS)
+        queryItems.append(URLQueryItem(name: "StreamOptions", value: "{\"RequireAvc\":true}"))
+        
         components?.queryItems = queryItems
         
-        print("Constructed manual HLS URL: \(components?.url?.absoluteString ?? "Invalid URL")")
+        print("Constructed manual HLS streaming URL: \(components?.url?.absoluteString ?? "Invalid URL")")
         return components?.url
     }
     
