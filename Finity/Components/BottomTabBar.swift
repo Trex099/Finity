@@ -41,13 +41,7 @@ struct BottomTabBar: View {
                 }
             }
             .frame(width: geometry.size.width, height: 60)
-            .background(Color.black.opacity(0.9))
-            .overlay(
-                Rectangle()
-                    .frame(width: geometry.size.width, height: 0.5)
-                    .foregroundColor(Color.gray.opacity(0.3)),
-                alignment: .top
-            )
+            .background(BlurView(style: .systemUltraThinMaterialDark))
         }
         .frame(height: 60)
     }
