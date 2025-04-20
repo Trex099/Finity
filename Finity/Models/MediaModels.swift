@@ -15,6 +15,9 @@ struct MediaItem: Identifiable, Codable, Hashable {
     var userData: UserData? // Make mutable for optimistic updates
     let genres: [String]? // List of genres
     let runTimeTicks: Int? // Add runtime ticks
+    let indexNumber: Int? // Episode number
+    let parentIndexNumber: Int? // Season number
+    let seriesName: String? // Name of the parent series
     // Add other relevant fields as needed: People (cast), Studios etc.
     
     // Conformance to Identifiable using Jellyfin's ID
@@ -44,6 +47,9 @@ struct MediaItem: Identifiable, Codable, Hashable {
         case userData = "UserData"
         case genres = "Genres"
         case runTimeTicks = "RunTimeTicks"
+        case indexNumber = "IndexNumber"
+        case parentIndexNumber = "ParentIndexNumber"
+        case seriesName = "SeriesName"
         // Map other fields if added
     }
     
