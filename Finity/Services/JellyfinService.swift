@@ -221,8 +221,9 @@ class JellyfinService: ObservableObject {
     // MARK: - Playback
     
     func getVideoStreamURL(itemId: String) -> URL? {
-        guard isAuthenticated, let serverURL = serverURL, let accessToken = accessToken else {
-            print("Error: Cannot get stream URL, not authenticated.")
+        // Check authentication state and required components
+        guard isAuthenticated, let serverURL = serverURL, let _ = accessToken else { // accessToken is checked but not used here
+            print("Error: Cannot get stream URL, not authenticated or missing server/token.")
             return nil
         }
         
@@ -241,8 +242,9 @@ class JellyfinService: ObservableObject {
     // MARK: - Request Building & Handling Helpers
 
     private func buildAuthenticatedRequest(endpoint: String, method: String = "GET", params: [String: String]? = nil) -> URLRequest? {
-        guard isAuthenticated, let serverURL = serverURL, let userID = userID, let accessToken = accessToken else {
-            print("Error: Attempted to build request while not authenticated.")
+        // Check authentication state and required components
+        guard isAuthenticated, let serverURL = serverURL, let _ = userID, let accessToken = accessToken else { // userID is checked but not used here
+            print("Error: Attempted to build request while not authenticated or missing server/user/token.")
             return nil
         }
         

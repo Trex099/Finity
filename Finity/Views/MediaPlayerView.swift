@@ -34,7 +34,7 @@ struct MediaPlayerView: View {
                 // Loading indicator or error message
                 ProgressView()
                     .scaleEffect(2)
-                    .onAppear(perform: setupPlayer) // Setup player when placeholder appears
+                    .task { await setupPlayer() } // Use .task for async setup
             }
             
             // Custom Controls Overlay
@@ -60,7 +60,7 @@ struct MediaPlayerView: View {
     
     // MARK: - Player Setup & Cleanup
     
-    private func setupPlayer() {
+    private func setupPlayer() async {
         guard let url = jellyfinService.getVideoStreamURL(itemId: item.id) else {
             print("Error: Could not get video stream URL for \(item.id)")
             // TODO: Show error state to user
@@ -68,30 +68,48 @@ struct MediaPlayerView: View {
         }
         print("Setting up player with URL: \(url)")
         let avPlayer = AVPlayer(url: url)
+        
+        // Assign player first
         self.player = avPlayer
         
-        // Listen for player item status changes
-        NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: avPlayer.currentItem, queue: .main) { [weak self] _ in
-            self?.isPlaying = false
+        // Listen for player item status changes (No [weak self])
+        NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: avPlayer.currentItem, queue: .main) { _ in
+            // Since MediaPlayerView is a struct, direct mutation is fine here.
+            isPlaying = false
         }
         
-        // Get total duration
-        if let playerItem = avPlayer.currentItem {
-            let duration = playerItem.asset.duration
-            totalDuration = CMTimeGetSeconds(duration)
+        // Get total duration asynchronously
+        do {
+            let duration = try await avPlayer.load(.duration)
+            // Ensure duration is valid before setting
+            if duration.seconds.isFinite && !duration.seconds.isNaN {
+                 totalDuration = duration.seconds
+                 print("Player duration loaded: \(totalDuration) seconds")
+            } else {
+                print("Warning: Loaded duration is invalid: \(duration.seconds)")
+                totalDuration = 0 // Set a default or handle error
+            }
+        } catch {
+            print("Error loading player duration: \(error)")
+            totalDuration = 0 // Set a default or handle error
+            // TODO: Potentially show error state to user
         }
         
-        // Setup time observer
+        // Setup time observer (No [weak self], self is implicitly captured)
         let interval = CMTime(seconds: 1, preferredTimescale: 1)
-        timeObserverToken = avPlayer.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-            guard let self = self, !self.isSeeking else { return }
-            self.currentTime = time.seconds
+        timeObserverToken = avPlayer.addPeriodicTimeObserver(forInterval: interval, queue: .main) { time in
+            // Guard against mutations while seeking
+            guard !isSeeking else { return }
+            currentTime = time.seconds
         }
         
         // Start playback automatically
+        // Ensure player setup (like duration loading) is somewhat complete before playing
+        // Although AVPlayer usually handles this gracefully.
         avPlayer.play()
         isPlaying = true
         scheduleControlsTimer()
+        print("Player setup complete, playback started.")
     }
     
     private func cleanupPlayer() {
@@ -148,17 +166,18 @@ struct MediaPlayerView: View {
     private func seek(to time: Double) {
         guard let player = player else { return }
         let targetTime = CMTime(seconds: time, preferredTimescale: 600) // High precision timescale
-        player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] finished in
-            self?.isSeeking = false // Re-enable time updates after seek finishes
+        player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero) { finished in
+            // No [weak self], self is implicitly captured for struct
+            isSeeking = false // Re-enable time updates after seek finishes
             if finished {
                 // Optionally resume playback if it was playing before seek started
-                if self?.isPlaying ?? false {
-                    self?.player?.play()
+                if isPlaying {
+                    player.play() // Directly use captured player
                 }
             }
             // Keep controls visible after seeking
-            self?.showControls = true
-            self?.scheduleControlsTimer()
+            showControls = true
+            scheduleControlsTimer()
         }
     }
 }
