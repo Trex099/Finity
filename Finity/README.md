@@ -6,9 +6,11 @@ A sleek, modern, and cinematic frontend for Jellyfin media server, inspired by A
 
 - Dark theme with minimalist layout focusing on content
 - Netflix-style horizontal scrolling rows for browsing content
+- Bottom tab navigation with Home, Search, Favorites, and Settings
 - Cinematic full-screen media player with floating controls
 - Smooth transitions and animations for a premium feel
 - Responsive design that adapts to all iPhone screen sizes
+- Metallic FINITY logo showcasing premium branding
 
 ## Setup
 
@@ -43,6 +45,15 @@ To connect to your Jellyfin server:
 )
 ```
 
+## Navigation Structure
+
+The app uses a tab-based navigation system with four main tabs:
+
+1. **Home** - Main browsing experience with featured content and media rows
+2. **Search** - Search functionality with categories and filters
+3. **Favorites** - User's saved favorite content
+4. **Settings** - App configuration and user preferences
+
 ## Implementation Notes
 
 - The current implementation uses mock data for demonstration
@@ -55,7 +66,7 @@ To connect to your Jellyfin server:
 - All UI components use GeometryReader to adapt to different screen sizes
 - Minimum touch target sizes of 44x44 points following Apple's guidelines
 - Dynamic text sizing that scales appropriately for different devices
-- Navigation tabs hide on smaller screens to conserve space
+- Bottom tab navigation for easier one-handed use on modern iPhones
 - Volume controls conditionally appear based on available screen height
 
 ## Requirements
