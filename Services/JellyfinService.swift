@@ -268,7 +268,7 @@ class JellyfinService: ObservableObject {
         // Clear local state FIRST
         clearAuthenticationLocally()
         // Then clear Keychain
-        clearCredentialsFromKeychain() { [weak self] in
+        clearCredentialsFromKeychain() {
              print("User logged out and local/Keychain state cleared.")
         }
     }
@@ -479,7 +479,9 @@ class JellyfinService: ObservableObject {
         
         // Jellyfin API endpoint to toggle favorite status
         let urlString = "\(serverURL)/Users/\(userID)/FavoriteItems/\(itemId)?X-Emby-Token=\(accessToken)"
-        guard var request = URLRequest(url: URL(string: urlString)!) else { return }
+        guard let url = URL(string: urlString) else { return }
+        
+        var request = URLRequest(url: url)
         
         // Jellyfin uses POST to add, DELETE to remove
         request.httpMethod = currentStatus ? "DELETE" : "POST"
@@ -500,11 +502,10 @@ class JellyfinService: ObservableObject {
                     // Refresh the favorites list
                     self.fetchFavorites()
                     
-                    // If we have the item in currentItemDetails, update its favorite status
-                    if var details = self.currentItemDetails, details.id == itemId {
+                    if let details = self.currentItemDetails, details.id == itemId {
                         // This is a simplified update - in a real app you'd need a more complex approach
                         // since UserItemData is immutable
-                        let updatedUserData = UserItemData(
+                        _ = UserItemData(
                             playbackPositionTicks: details.userData?.playbackPositionTicks,
                             playCount: details.userData?.playCount,
                             isFavorite: !currentStatus,
@@ -542,11 +543,8 @@ class JellyfinService: ObservableObject {
         }
         
         let endpoint = "/Sessions/Playing"
-        guard var urlComponents = URLComponents(string: serverURL + endpoint) else {
-            throw JellyfinError.invalidURL("Invalid endpoint URL")
-        }
-        
-        guard let url = urlComponents.url else {
+        let urlComponents = URLComponents(string: serverURL + endpoint)
+        guard let url = urlComponents?.url else {
             throw JellyfinError.invalidURL("Could not create final URL from components")
         }
         
@@ -573,7 +571,6 @@ class JellyfinService: ObservableObject {
             throw JellyfinError.serializationError("Failed to serialize playback data: \(error.localizedDescription)")
         }
         
-        // Send the request
         let (_, response) = try await URLSession.shared.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
@@ -683,21 +680,23 @@ class JellyfinService: ObservableObject {
 
     private func buildAuthenticatedRequest(endpoint: String, method: String = "GET", params: [String: String]? = nil) -> URLRequest? {
         // Check authentication state and required components
-        guard isAuthenticated, let serverURL = serverURL, let _ = userID, let accessToken = accessToken else { // userID is checked but not used here
+        guard isAuthenticated, let serverURL = serverURL, let _ = userID, let accessToken = accessToken else { 
             print("Error: Attempted to build request while not authenticated or missing server/user/token.")
             return nil
         }
         
-        guard var urlComponents = URLComponents(string: serverURL + endpoint) else {
+        guard let urlComponents = URLComponents(string: serverURL + endpoint) else {
             print("Error: Invalid endpoint for URLComponents - \(endpoint)")
             return nil
         }
         
+        // Create a mutable copy if needed for adding query items
+        var components = urlComponents
         if let params = params {
-            urlComponents.queryItems = params.map { URLQueryItem(name: $0.key, value: $0.value) }
+            components.queryItems = params.map { URLQueryItem(name: $0.key, value: $0.value) }
         }
         
-        guard let url = urlComponents.url else {
+        guard let url = components.url else {
             print("Error: Could not create final URL from components.")
             return nil
         }
