@@ -6,6 +6,7 @@ import Foundation
 struct MediaItem: Codable, Identifiable, Hashable {
     let id: String
     let name: String
+    let serverId: String?
     let type: String?
     let path: String?
     
@@ -28,6 +29,7 @@ struct MediaItem: Codable, Identifiable, Hashable {
     let parentIndexNumber: Int? // Season number
     
     // Image paths and properties
+    let imageTags: [String: String]?
     let primaryImageTag: String?
     let primaryImageAspectRatio: Double?
     let backdropImageTags: [String]?
@@ -209,4 +211,13 @@ enum JellyfinError: Error, LocalizedError {
             return "Unknown error: \(detail)"
         }
     }
+}
+
+// MARK: - UI Models
+
+// MediaRow model for horizontal media rows in the UI
+struct MediaRow: Identifiable {
+    var id = UUID()
+    let title: String
+    let items: [MediaItem]
 } 
