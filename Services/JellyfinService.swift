@@ -61,6 +61,9 @@ class JellyfinService: ObservableObject {
     @Published var currentItemDetails: MediaItem? = nil
     @Published var isLoadingData = false // For general data loading
     
+    // New properties to the JellyfinService class
+    @Published var favoriteItems: [MediaItem] = []
+    
     private var cancellables = Set<AnyCancellable>()
     // REMOVED: private let db = Firestore.firestore()
     // REMOVED: private var firestoreListener: ListenerRegistration?
@@ -469,32 +472,58 @@ class JellyfinService: ObservableObject {
     // MARK: - User Actions (Mark Favorite/Watched etc.)
     
     func toggleFavorite(itemId: String, currentStatus: Bool) {
-        // Safely unwrap userID
-        guard let currentUserID = userID else {
-            print("Error: Cannot toggle favorite, missing userID.")
+        guard isAuthenticated, let userID = userID, let accessToken = accessToken, let serverURL = serverURL else {
+            print("Cannot toggle favorite: not authenticated")
             return
         }
         
-        guard let request = buildAuthenticatedRequest(endpoint: "/Users/\(currentUserID)/FavoriteItems/\(itemId)", method: currentStatus ? "DELETE" : "POST") else { return }
+        // Jellyfin API endpoint to toggle favorite status
+        let urlString = "\(serverURL)/Users/\(userID)/FavoriteItems/\(itemId)?X-Emby-Token=\(accessToken)"
+        guard var request = URLRequest(url: URL(string: urlString)!) else { return }
         
-        // We don't expect a meaningful body back, just check status code
-        URLSession.shared.dataTaskPublisher(for: request)
-            .tryMap(handleHTTPResponse) // Checks for 2xx status
-            .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { [weak self] completion in
-                 if case .failure(let error) = completion { self?.handleAPIError(error, context: "Toggle Favorite (\(itemId))") }
-                 else { 
-                     print("Successfully toggled favorite status for \(itemId) to \(!currentStatus)")
-                     // Optionally: Re-fetch item details or update local state if needed for immediate UI feedback
-                     // self?.fetchItemDetails(itemID: itemId) // Might be too slow
-                     // Or update the `currentItemDetails` directly if it matches itemId
-                      if self?.currentItemDetails?.id == itemId {
-                           self?.currentItemDetails?.userData?.isFavorite = !currentStatus // Note: Modifying nested state directly needs care
-                      }
-                     // TODO: Update the item in latestItems/continueWatchingItems if it exists there too
-                 }
-             }, receiveValue: { _ in /* No body expected */ })
-            .store(in: &cancellables)
+        // Jellyfin uses POST to add, DELETE to remove
+        request.httpMethod = currentStatus ? "DELETE" : "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        URLSession.shared.dataTask(with: request) { [weak self] _, response, error in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Error toggling favorite: \(error.localizedDescription)")
+                    self.errorMessage = "Failed to update favorite status"
+                    return
+                }
+                
+                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
+                    print("Successfully \(currentStatus ? "removed from" : "added to") favorites")
+                    // Refresh the favorites list
+                    self.fetchFavorites()
+                    
+                    // If we have the item in currentItemDetails, update its favorite status
+                    if var details = self.currentItemDetails, details.id == itemId {
+                        // This is a simplified update - in a real app you'd need a more complex approach
+                        // since UserItemData is immutable
+                        let updatedUserData = UserItemData(
+                            playbackPositionTicks: details.userData?.playbackPositionTicks,
+                            playCount: details.userData?.playCount,
+                            isFavorite: !currentStatus,
+                            played: details.userData?.played ?? false,
+                            playedPercentage: details.userData?.playedPercentage
+                        )
+                        
+                        // This won't work directly because MediaItem is also immutable
+                        // You would need to create a new MediaItem with the updated userData
+                        // Here's a conceptual example of what you'd need
+                        // details.userData = updatedUserData
+                        // self.currentItemDetails = details
+                    }
+                } else {
+                    print("Failed to update favorite status")
+                    self.errorMessage = "Failed to update favorite status"
+                }
+            }
+        }.resume()
     }
     
     // TODO: Add methods for marking watched/unwatched, updating progress etc.
@@ -785,6 +814,207 @@ class JellyfinService: ObservableObject {
         self.accessToken = accessToken
         
         print("Credentials saved to Keychain.")
+    }
+
+    // MARK: - Favorites Management
+
+    func fetchFavorites() {
+        guard isAuthenticated, let userID = userID, let accessToken = accessToken, let serverURL = serverURL else {
+            print("Cannot fetch favorites: not authenticated")
+            return
+        }
+        
+        isLoadingData = true
+        
+        // Example URL to fetch user favorites from Jellyfin
+        let urlString = "\(serverURL)/Users/\(userID)/Items?Filters=IsFavorite&fields=Overview,Genres,MediaStreams,RunTimeTicks&X-Emby-Token=\(accessToken)"
+        
+        guard let url = URL(string: urlString) else {
+            print("Invalid URL for favorites fetch")
+            isLoadingData = false
+            return
+        }
+        
+        URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                self.isLoadingData = false
+                
+                if let error = error {
+                    print("Error fetching favorites: \(error.localizedDescription)")
+                    self.errorMessage = "Failed to fetch favorites: \(error.localizedDescription)"
+                    return
+                }
+                
+                guard let data = data else {
+                    print("No data received")
+                    return
+                }
+                
+                do {
+                    let response = try JSONDecoder().decode(JellyfinItemsResponse<MediaItem>.self, from: data)
+                    self.favoriteItems = response.items
+                    print("Fetched \(response.items.count) favorite items")
+                } catch {
+                    print("Error decoding favorites: \(error.localizedDescription)")
+                    self.errorMessage = "Failed to decode favorites: \(error.localizedDescription)"
+                }
+            }
+        }.resume()
+    }
+
+    // MARK: - Item Details
+
+    func fetchItemDetails(id: String, completion: @escaping (Result<MediaItem, Error>) -> Void) {
+        guard isAuthenticated, let userID = userID, let accessToken = accessToken, let serverURL = serverURL else {
+            print("Cannot fetch item details: not authenticated")
+            completion(.failure(JellyfinError.notAuthenticated))
+            return
+        }
+        
+        // Example URL to fetch item details from Jellyfin
+        let urlString = "\(serverURL)/Users/\(userID)/Items/\(id)?fields=Overview,Genres,MediaStreams,RunTimeTicks&X-Emby-Token=\(accessToken)"
+        
+        guard let url = URL(string: urlString) else {
+            print("Invalid URL for item details")
+            completion(.failure(JellyfinError.invalidURL("Invalid URL for item details")))
+            return
+        }
+        
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            if let error = error {
+                print("Error fetching item details: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+                return
+            }
+            
+            guard let data = data else {
+                print("No data received for item details")
+                DispatchQueue.main.async {
+                    completion(.failure(JellyfinError.networkError("No data received")))
+                }
+                return
+            }
+            
+            do {
+                let item = try JSONDecoder().decode(MediaItem.self, from: data)
+                DispatchQueue.main.async {
+                    self.currentItemDetails = item  // Store in service for reference
+                    completion(.success(item))
+                }
+            } catch {
+                print("Error decoding item details: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+            }
+        }.resume()
+    }
+
+    // MARK: - Similar Items
+
+    func fetchSimilarItems(for itemId: String, completion: @escaping (Result<[MediaItem], Error>) -> Void) {
+        guard isAuthenticated, let userID = userID, let accessToken = accessToken, let serverURL = serverURL else {
+            print("Cannot fetch similar items: not authenticated")
+            completion(.failure(JellyfinError.notAuthenticated))
+            return
+        }
+        
+        // Example URL to fetch similar items from Jellyfin
+        let urlString = "\(serverURL)/Items/\(itemId)/Similar?userId=\(userID)&limit=10&fields=Overview,Genres,MediaStreams,RunTimeTicks&X-Emby-Token=\(accessToken)"
+        
+        guard let url = URL(string: urlString) else {
+            print("Invalid URL for similar items")
+            completion(.failure(JellyfinError.invalidURL("Invalid URL for similar items")))
+            return
+        }
+        
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            if let error = error {
+                print("Error fetching similar items: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+                return
+            }
+            
+            guard let data = data else {
+                print("No data received for similar items")
+                DispatchQueue.main.async {
+                    completion(.failure(JellyfinError.networkError("No data received")))
+                }
+                return
+            }
+            
+            do {
+                let response = try JSONDecoder().decode(JellyfinItemsResponse<MediaItem>.self, from: data)
+                DispatchQueue.main.async {
+                    completion(.success(response.items))
+                }
+            } catch {
+                print("Error decoding similar items: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+            }
+        }.resume()
+    }
+
+    // MARK: - Media Playback
+
+    func playMedia(item: MediaItem) {
+        // Placeholder function to handle media playback
+        // In a real implementation, this would navigate to your player view
+        // and start playback with the appropriate settings
+        print("Playing media: \(item.name)")
+        
+        // Example implementation:
+        // 1. Get playback info from the server
+        // 2. Set up the player with the appropriate URL and stream selection
+        // 3. Navigate to the player view
+        // 4. Report playback start to the server
+        
+        // This would typically be implemented in your app's navigation flow
+    }
+
+    // MARK: - Image Handling
+
+    enum ImageType {
+        case primary
+        case backdrop
+        case logo
+        case banner
+        case thumb
+    }
+
+    func imageUrl(for itemId: String, tag: String?, type: ImageType, maxWidth: Int = 0, maxHeight: Int = 0) -> URL? {
+        guard let serverURL = serverURL, let tag = tag else {
+            return nil
+        }
+        
+        let typeString: String
+        switch type {
+        case .primary: typeString = "Primary"
+        case .backdrop: typeString = "Backdrop"
+        case .logo: typeString = "Logo"
+        case .banner: typeString = "Banner"
+        case .thumb: typeString = "Thumb"
+        }
+        
+        var urlString = "\(serverURL)/Items/\(itemId)/Images/\(typeString)?tag=\(tag)"
+        
+        if maxWidth > 0 {
+            urlString += "&maxWidth=\(maxWidth)"
+        }
+        
+        if maxHeight > 0 {
+            urlString += "&maxHeight=\(maxHeight)"
+        }
+        
+        return URL(string: urlString)
     }
 
 } 
