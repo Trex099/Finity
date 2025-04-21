@@ -87,6 +87,15 @@ struct UserItemData: Codable, Hashable {
     let isFavorite: Bool
     let played: Bool
     
+    // Constructor with defaults for convenience
+    init(playbackPositionTicks: Int64? = nil, playCount: Int? = nil, isFavorite: Bool = false, played: Bool = false, playedPercentage: Double? = nil) {
+        self.playbackPositionTicks = playbackPositionTicks
+        self.playCount = playCount
+        self.isFavorite = isFavorite
+        self.played = played
+        self.playedPercentage = playedPercentage
+    }
+    
     var formattedProgress: String {
         guard let progress = playedPercentage else { return "" }
         return "\(Int(progress))%"
