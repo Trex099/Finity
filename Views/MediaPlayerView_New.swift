@@ -32,13 +32,19 @@ struct MediaPlayerView_New: View {
             // Use our custom VLCPlayerView instead of VLCVideoPlayer
             VLCPlayerView(proxy: playerManager.proxy)
                 .edgesIgnoringSafeArea(.all)
-                // Add callbacks to update the playerManager
-                .onTicksUpdated { time, _ in // Use the time provided by the callback
-                    // Assuming time.intValue gives milliseconds
-                    playerManager.onTicksUpdated(ticks: time.intValue)
-                }
-                .onStateUpdated { state, _ in // Use the state provided by the callback
-                    playerManager.onStateUpdated(newState: state)
+                // Replace the unsupported modifiers with a background timer
+                // that will update the playerManager's state and time
+                .onAppear {
+                    // Start a timer to poll the player's state and time
+                    Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+                        // Update current time from the player proxy
+                        if let currentTime = playerManager.proxy.time {
+                            playerManager.onTicksUpdated(ticks: currentTime.intValue)
+                        }
+                        
+                        // Update player state
+                        playerManager.onStateUpdated(newState: playerManager.proxy.state)
+                    }
                 }
                 .onTapGesture {
                     withAnimation {
