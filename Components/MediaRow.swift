@@ -36,19 +36,23 @@ struct MediaRowView_Previews: PreviewProvider {
     static let previewItems: [MediaItem] = [
         MediaItem(
             id: "1", name: "Inception", serverId: nil, type: "Movie", 
-            overview: "A thief who steals corporate secrets.", productionYear: 2010, 
-            communityRating: 8.8, officialRating: "PG-13", 
-            imageTags: ["Primary": "inceptionTag"], backdropImageTags: [], 
-            userData: nil, genres: ["Action", "Sci-Fi"], runTimeTicks: 72000000000,
-            indexNumber: nil, parentIndexNumber: nil, seriesName: nil
+            path: nil, overview: "A thief who steals corporate secrets.", 
+            taglines: nil, genres: ["Action", "Sci-Fi"], studios: nil, 
+            productionYear: 2010, communityRating: 8.8, officialRating: "PG-13", 
+            runTimeTicks: 72000000000, seriesName: nil, seriesId: nil,
+            seasonId: nil, parentId: nil, indexNumber: nil, parentIndexNumber: nil,
+            imageTags: ["Primary": "inceptionTag"], primaryImageTag: nil,
+            primaryImageAspectRatio: nil, backdropImageTags: [], userData: nil
         ),
         MediaItem(
             id: "2", name: "The Dark Knight", serverId: nil, type: "Movie", 
-            overview: "Batman faces his greatest challenge.", productionYear: 2008, 
-            communityRating: 9.0, officialRating: "PG-13", 
-            imageTags: ["Primary": "darkknightTag"], backdropImageTags: [], 
-            userData: nil, genres: ["Action", "Drama"], runTimeTicks: nil,
-            indexNumber: nil, parentIndexNumber: nil, seriesName: nil
+            path: nil, overview: "Batman faces his greatest challenge.",
+            taglines: nil, genres: ["Action", "Drama"], studios: nil,
+            productionYear: 2008, communityRating: 9.0, officialRating: "PG-13", 
+            runTimeTicks: nil, seriesName: nil, seriesId: nil,
+            seasonId: nil, parentId: nil, indexNumber: nil, parentIndexNumber: nil,
+            imageTags: ["Primary": "darkknightTag"], primaryImageTag: nil,
+            primaryImageAspectRatio: nil, backdropImageTags: [], userData: nil
         )
     ]
     
