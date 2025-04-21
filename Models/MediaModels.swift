@@ -117,7 +117,7 @@ struct MediaSourceInfo: Codable {
     let id: String
     let name: String?
     let path: String?
-    let protocol: String?
+    let protocolName: String?
     let encoderProtocol: String?
     let encoderPath: String?
     let type: String?
