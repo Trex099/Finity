@@ -428,6 +428,11 @@ struct MediaPlayerView_New: View {
     
     // Start a playback session in Jellyfin
     private func startPlaybackSession(itemId: String) {
+        print("Starting playback session for item: \(itemId)")
+        // Since reportPlaybackStart doesn't exist yet, we'll just log it
+        // TODO: Implement reportPlaybackStart in JellyfinService
+        // In the future, you can uncomment this code:
+        /*
         Task {
             do {
                 // Generate a session ID
@@ -445,6 +450,7 @@ struct MediaPlayerView_New: View {
                 // Continue with playback even if session can't be reported
             }
         }
+        */
     }
     
     // Add observer for player state changes
@@ -454,18 +460,19 @@ struct MediaPlayerView_New: View {
         
         // Add time observer
         let interval = CMTime(seconds: 1.0, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-        timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-            guard let self = self, !self.isSeeking else { return }
+        timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [self] time in
+            guard !self.isSeeking else { return }
             self.currentTime = time.seconds
         }
         
         // Add notification observer for when item finishes playing
         NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(playerItemDidPlayToEndTime),
-            name: .AVPlayerItemDidPlayToEndTime,
-            object: player.currentItem
-        )
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: player.currentItem,
+            queue: .main
+        ) { [self] _ in
+            self.handlePlayerDidFinishPlaying()
+        }
     }
     
     // Clean up observers when needed
@@ -481,7 +488,7 @@ struct MediaPlayerView_New: View {
     }
     
     // Handle player item finishing
-    @objc private func playerItemDidPlayToEndTime() {
+    private func handlePlayerDidFinishPlaying() {
         isPlaying = false
         if autoExitOnFinish {
             // Exit the player view

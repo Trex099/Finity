@@ -506,6 +506,56 @@ class JellyfinService: ObservableObject {
         return try await fetchPlaybackInfo(itemId: itemId)
     }
     
+    // Report playback start to Jellyfin server
+    func reportPlaybackStart(itemId: String, sessionId: String) async throws {
+        guard isAuthenticated, let serverURL = serverURL, let userID = userID else {
+            throw JellyfinError.notAuthenticated
+        }
+        
+        let endpoint = "/Sessions/Playing"
+        guard var urlComponents = URLComponents(string: serverURL + endpoint) else {
+            throw JellyfinError.invalidURL("Invalid endpoint URL")
+        }
+        
+        guard let url = urlComponents.url else {
+            throw JellyfinError.invalidURL("Could not create final URL from components")
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("MediaBrowser Token=\"\(accessToken ?? "")\"", forHTTPHeaderField: "Authorization")
+        request.setValue(clientAuthHeaderValue(), forHTTPHeaderField: "X-Emby-Authorization")
+        
+        // Create the playback report payload
+        let payload: [String: Any] = [
+            "ItemId": itemId,
+            "SessionId": sessionId,
+            "PlaySessionId": sessionId,
+            "MediaSourceId": itemId,
+            "PositionTicks": 0,
+            "IsPaused": false,
+            "PlayMethod": "DirectPlay"
+        ]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+        } catch {
+            throw JellyfinError.serializationError("Failed to serialize playback data: \(error.localizedDescription)")
+        }
+        
+        // Send the request
+        let (_, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            let httpResponse = response as? HTTPURLResponse
+            let statusCode = httpResponse?.statusCode ?? -1
+            throw JellyfinError.serverError("Server returned error: \(statusCode)")
+        }
+        
+        print("Successfully reported playback start for item: \(itemId)")
+    }
+    
     // New function to get PlaybackInfo
     private func fetchPlaybackInfo(itemId: String) async throws -> PlaybackInfoResponse {
         guard let serverURL = self.serverURL, let accessToken = self.accessToken else {
