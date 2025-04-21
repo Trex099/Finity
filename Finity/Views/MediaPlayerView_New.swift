@@ -429,10 +429,7 @@ struct MediaPlayerView_New: View {
     // Start a playback session in Jellyfin
     private func startPlaybackSession(itemId: String) {
         print("Starting playback session for item: \(itemId)")
-        // Since reportPlaybackStart doesn't exist yet, we'll just log it
-        // TODO: Implement reportPlaybackStart in JellyfinService
-        // In the future, you can uncomment this code:
-        /*
+        
         Task {
             do {
                 // Generate a session ID
@@ -450,7 +447,6 @@ struct MediaPlayerView_New: View {
                 // Continue with playback even if session can't be reported
             }
         }
-        */
     }
     
     // Add observer for player state changes
@@ -503,7 +499,7 @@ struct MediaPlayerView_New: View {
         }
         
         // Wait until the player item status is determined
-        return try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { continuation in
             let keyPath = \AVPlayerItem.status
             
             // Create observer for the status
@@ -515,7 +511,7 @@ struct MediaPlayerView_New: View {
                     if CMTimeGetSeconds(duration).isFinite {
                         self.totalDuration = CMTimeGetSeconds(duration)
                     }
-                    continuation.resume()
+                    continuation.resume(returning: ())
                     // Remove observer after status is determined
                     statusObserver.invalidate()
                     
