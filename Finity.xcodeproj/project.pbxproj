@@ -7,10 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		E9FE38612DB5860A00772703 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = E9FE38602DB5860A00772703 /* FirebaseAnalytics */; };
-		E9FE38632DB5860A00772703 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = E9FE38622DB5860A00772703 /* FirebaseCore */; };
-		E9FE38652DB5860A00772703 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = E9FE38642DB5860A00772703 /* FirebaseFirestore */; };
-		E9FE38672DB58D0100772703 /* FirebaseFirestoreCombine-Community in Frameworks */ = {isa = PBXBuildFile; productRef = E9FE38662DB58D0100772703 /* FirebaseFirestoreCombine-Community */; };
+		E963AA202DB65F08009C56BD /* VLCKitSPM in Frameworks */ = {isa = PBXBuildFile; productRef = E963AA1F2DB65F08009C56BD /* VLCKitSPM */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -31,6 +28,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		E963AA562DB6681D009C56BD /* Finity.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = Finity.xcodeproj; sourceTree = "<group>"; };
 		E9FE37F22DB5348300772703 /* Finity.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Finity.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9FE37FF2DB5348500772703 /* FinityTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FinityTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9FE38092DB5348500772703 /* FinityUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FinityUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -59,10 +57,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E9FE38632DB5860A00772703 /* FirebaseCore in Frameworks */,
-				E9FE38612DB5860A00772703 /* FirebaseAnalytics in Frameworks */,
-				E9FE38652DB5860A00772703 /* FirebaseFirestore in Frameworks */,
-				E9FE38672DB58D0100772703 /* FirebaseFirestoreCombine-Community in Frameworks */,
+				E963AA202DB65F08009C56BD /* VLCKitSPM in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -83,6 +78,13 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		E963AA572DB6681D009C56BD /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 		E9FE37E92DB5348300772703 = {
 			isa = PBXGroup;
 			children = (
@@ -123,10 +125,7 @@
 			);
 			name = Finity;
 			packageProductDependencies = (
-				E9FE38602DB5860A00772703 /* FirebaseAnalytics */,
-				E9FE38622DB5860A00772703 /* FirebaseCore */,
-				E9FE38642DB5860A00772703 /* FirebaseFirestore */,
-				E9FE38662DB58D0100772703 /* FirebaseFirestoreCombine-Community */,
+				E963AA1F2DB65F08009C56BD /* VLCKitSPM */,
 			);
 			productName = Finity;
 			productReference = E9FE37F22DB5348300772703 /* Finity.app */;
@@ -211,11 +210,17 @@
 			mainGroup = E9FE37E92DB5348300772703;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				E9FE385F2DB5860A00772703 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				E963AA1E2DB65F08009C56BD /* XCRemoteSwiftPackageReference "vlckit-spm" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E9FE37F32DB5348300772703 /* Products */;
 			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = E963AA572DB6681D009C56BD /* Products */;
+					ProjectRef = E963AA562DB6681D009C56BD /* Finity.xcodeproj */;
+				},
+			);
 			projectRoot = "";
 			targets = (
 				E9FE37F12DB5348300772703 /* Finity */,
@@ -580,36 +585,21 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		E9FE385F2DB5860A00772703 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+		E963AA1E2DB65F08009C56BD /* XCRemoteSwiftPackageReference "vlckit-spm" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			repositoryURL = "https://github.com/tylerjonesio/vlckit-spm";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 11.11.0;
+				minimumVersion = 3.6.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		E9FE38602DB5860A00772703 /* FirebaseAnalytics */ = {
+		E963AA1F2DB65F08009C56BD /* VLCKitSPM */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = E9FE385F2DB5860A00772703 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseAnalytics;
-		};
-		E9FE38622DB5860A00772703 /* FirebaseCore */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E9FE385F2DB5860A00772703 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseCore;
-		};
-		E9FE38642DB5860A00772703 /* FirebaseFirestore */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E9FE385F2DB5860A00772703 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseFirestore;
-		};
-		E9FE38662DB58D0100772703 /* FirebaseFirestoreCombine-Community */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E9FE385F2DB5860A00772703 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = "FirebaseFirestoreCombine-Community";
+			package = E963AA1E2DB65F08009C56BD /* XCRemoteSwiftPackageReference "vlckit-spm" */;
+			productName = VLCKitSPM;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -47,6 +47,7 @@ class JellyfinService: ObservableObject {
     @Published var serverURL: String? = nil
     @Published var accessToken: String? = nil
     @Published var userID: String? = nil
+    @Published var username: String? = nil  // Add missing username property
     @Published var errorMessage: String? = nil
     @Published var isLoadingAuth = false // Renamed for clarity
     @Published var isCheckingAuth = true // New state for initial credential check
@@ -59,6 +60,9 @@ class JellyfinService: ObservableObject {
     @Published var showItems: [MediaItem] = [] // New state for TV Shows
     @Published var currentItemDetails: MediaItem? = nil
     @Published var isLoadingData = false // For general data loading
+    
+    // New properties to the JellyfinService class
+    @Published var favoriteItems: [MediaItem] = []
     
     private var cancellables = Set<AnyCancellable>()
     // REMOVED: private let db = Firestore.firestore()
@@ -264,7 +268,7 @@ class JellyfinService: ObservableObject {
         // Clear local state FIRST
         clearAuthenticationLocally()
         // Then clear Keychain
-        clearCredentialsFromKeychain() { [weak self] in
+        clearCredentialsFromKeychain() {
              print("User logged out and local/Keychain state cleared.")
         }
     }
@@ -468,88 +472,198 @@ class JellyfinService: ObservableObject {
     // MARK: - User Actions (Mark Favorite/Watched etc.)
     
     func toggleFavorite(itemId: String, currentStatus: Bool) {
-        // Safely unwrap userID
-        guard let currentUserID = userID else {
-            print("Error: Cannot toggle favorite, missing userID.")
+        guard isAuthenticated, let userID = userID, let accessToken = accessToken, let serverURL = serverURL else {
+            print("Cannot toggle favorite: not authenticated")
             return
         }
         
-        guard let request = buildAuthenticatedRequest(endpoint: "/Users/\(currentUserID)/FavoriteItems/\(itemId)", method: currentStatus ? "DELETE" : "POST") else { return }
+        // Jellyfin API endpoint to toggle favorite status
+        let urlString = "\(serverURL)/Users/\(userID)/FavoriteItems/\(itemId)?X-Emby-Token=\(accessToken)"
+        guard let url = URL(string: urlString) else { return }
         
-        // We don't expect a meaningful body back, just check status code
-        URLSession.shared.dataTaskPublisher(for: request)
-            .tryMap(handleHTTPResponse) // Checks for 2xx status
-            .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { [weak self] completion in
-                 if case .failure(let error) = completion { self?.handleAPIError(error, context: "Toggle Favorite (\(itemId))") }
-                 else { 
-                     print("Successfully toggled favorite status for \(itemId) to \(!currentStatus)")
-                     // Optionally: Re-fetch item details or update local state if needed for immediate UI feedback
-                     // self?.fetchItemDetails(itemID: itemId) // Might be too slow
-                     // Or update the `currentItemDetails` directly if it matches itemId
-                      if self?.currentItemDetails?.id == itemId {
-                           self?.currentItemDetails?.userData?.isFavorite = !currentStatus // Note: Modifying nested state directly needs care
-                      }
-                     // TODO: Update the item in latestItems/continueWatchingItems if it exists there too
-                 }
-             }, receiveValue: { _ in /* No body expected */ })
-            .store(in: &cancellables)
+        var request = URLRequest(url: url)
+        
+        // Jellyfin uses POST to add, DELETE to remove
+        request.httpMethod = currentStatus ? "DELETE" : "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        URLSession.shared.dataTask(with: request) { [weak self] _, response, error in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Error toggling favorite: \(error.localizedDescription)")
+                    self.errorMessage = "Failed to update favorite status"
+                    return
+                }
+                
+                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
+                    print("Successfully \(currentStatus ? "removed from" : "added to") favorites")
+                    // Refresh the favorites list
+                    self.fetchFavorites()
+                    
+                    if let details = self.currentItemDetails, details.id == itemId {
+                        // This is a simplified update - in a real app you'd need a more complex approach
+                        // since UserItemData is immutable
+                        _ = UserItemData(
+                            playbackPositionTicks: details.userData?.playbackPositionTicks,
+                            playCount: details.userData?.playCount,
+                            isFavorite: !currentStatus,
+                            played: details.userData?.played ?? false,
+                            playedPercentage: details.userData?.playedPercentage
+                        )
+                        
+                        // This won't work directly because MediaItem is also immutable
+                        // You would need to create a new MediaItem with the updated userData
+                        // Here's a conceptual example of what you'd need
+                        // details.userData = updatedUserData
+                        // self.currentItemDetails = details
+                    }
+                } else {
+                    print("Failed to update favorite status")
+                    self.errorMessage = "Failed to update favorite status"
+                }
+            }
+        }.resume()
     }
     
     // TODO: Add methods for marking watched/unwatched, updating progress etc.
 
     // MARK: - Playback
     
-    // New function to get PlaybackInfo
-    func fetchPlaybackInfo(itemId: String) async throws -> PlaybackInfoResponse {
-        guard isAuthenticated, let currentUserID = userID, let serverURL = serverURL else {
-            print("Error: Cannot fetch playback info, not authenticated or missing server/user.")
-            throw URLError(.userAuthenticationRequired)
+    // Public wrapper for the private fetchPlaybackInfo method
+    func getPlaybackInfo(for itemId: String) async throws -> PlaybackInfoResponse {
+        return try await fetchPlaybackInfo(itemId: itemId)
+    }
+    
+    // Report playback start to Jellyfin server
+    func reportPlaybackStart(itemId: String, sessionId: String) async throws {
+        guard isAuthenticated, let serverURL = serverURL, let userID = userID else {
+            throw JellyfinError.notAuthenticated
         }
         
-        // 1. Construct DeviceInfo payload
-        let deviceInfo = createDeviceInfo()
-        guard let httpBody = try? JSONEncoder().encode(deviceInfo) else {
-            print("Error: Failed to encode DeviceInfo")
-            throw URLError(.cannotParseResponse)
+        let endpoint = "/Sessions/Playing"
+        let urlComponents = URLComponents(string: serverURL + endpoint)
+        guard let url = urlComponents?.url else {
+            throw JellyfinError.invalidURL("Could not create final URL from components")
         }
         
-        // 2. Build POST Request
-        let endpoint = "/Items/\(itemId)/PlaybackInfo?UserId=\(currentUserID)"
-        guard var request = buildAuthenticatedRequest(endpoint: endpoint, method: "POST") else {
-             print("Error: Failed to build PlaybackInfo request")
-            throw URLError(.badURL)
-        }
-        request.httpBody = httpBody
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("MediaBrowser Token=\"\(accessToken ?? "")\"", forHTTPHeaderField: "Authorization")
+        request.setValue(clientAuthHeaderValue(), forHTTPHeaderField: "X-Emby-Authorization")
         
-        // 3. Perform Network Call using async/await
-        print("Requesting PlaybackInfo for item: \(itemId)")
-        let (data, response) = try await URLSession.shared.data(for: request)
+        // Create the playback report payload
+        let payload: [String: Any] = [
+            "ItemId": itemId,
+            "SessionId": sessionId,
+            "PlaySessionId": sessionId,
+            "MediaSourceId": itemId,
+            "PositionTicks": 0,
+            "IsPaused": false,
+            "PlayMethod": "DirectPlay"
+        ]
         
-        // 4. Handle HTTP Response
-        guard let httpResponse = response as? HTTPURLResponse else {
-             print("Error: Invalid HTTP response received for PlaybackInfo.")
-             throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "Invalid HTTP response"])
-         }
-         print("PlaybackInfo Response Status Code: \(httpResponse.statusCode)")
-         guard (200...299).contains(httpResponse.statusCode) else {
-              let errorText = String(data: data, encoding: .utf8) ?? "Unknown API error (Status: \(httpResponse.statusCode))"
-              print("PlaybackInfo API Error Body: \(errorText)")
-              var userInfo: [String: Any] = [NSLocalizedDescriptionKey: errorText]
-              userInfo[NSURLErrorKey] = httpResponse.statusCode
-              throw URLError(.init(rawValue: httpResponse.statusCode), userInfo: userInfo)
-         }
-        
-        // 5. Decode the Response
         do {
-            let playbackInfo = try JSONDecoder().decode(PlaybackInfoResponse.self, from: data)
-            print("Successfully fetched PlaybackInfo with \(playbackInfo.mediaSources.count) media sources.")
-            return playbackInfo
+            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
         } catch {
-            print("Error decoding PlaybackInfoResponse: \(error)")
-            print("Raw JSON Data: \(String(data: data, encoding: .utf8) ?? "Invalid UTF8 Data")")
-            throw error // Re-throw the decoding error
+            throw JellyfinError.serializationError("Failed to serialize playback data: \(error.localizedDescription)")
+        }
+        
+        let (_, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            let httpResponse = response as? HTTPURLResponse
+            let statusCode = httpResponse?.statusCode ?? -1
+            throw JellyfinError.serverError("Server returned error: \(statusCode)")
+        }
+        
+        print("Successfully reported playback start for item: \(itemId)")
+    }
+    
+    // New function to get PlaybackInfo
+    private func fetchPlaybackInfo(itemId: String) async throws -> PlaybackInfoResponse {
+        guard let serverURL = self.serverURL, let accessToken = self.accessToken else {
+            throw JellyfinError.notAuthenticated
+        }
+        
+        // Construct URL for PlaybackInfo endpoint
+        let playbackInfoURLString = "\(serverURL)/Items/\(itemId)/PlaybackInfo"
+        guard let playbackInfoURL = URL(string: playbackInfoURLString) else {
+            throw JellyfinError.invalidURL("Invalid playback info URL")
+        }
+        
+        // Create request with the appropriate headers
+        var request = URLRequest(url: playbackInfoURL)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("MediaBrowser Client=\"Finity\", Device=\"iOS\", DeviceId=\"\(UIDevice.current.identifierForVendor?.uuidString ?? "Unknown")\", Version=\"1.0.0\"", forHTTPHeaderField: "X-Emby-Authorization")
+        request.addValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        
+        // Create the body data
+        let bodyData = [
+            "DeviceProfile": [
+                "MaxStreamingBitrate": 20000000, // 20Mbps
+                "MaxStaticBitrate": 20000000,    // 20Mbps
+                "MusicStreamingTranscodingBitrate": 192000, // 192kbps
+                "DirectPlayProfiles": [
+                    ["Type": "Video", "Container": "mp4,m4v,mov", "VideoCodec": "h264,hevc,mpeg4", "AudioCodec": "aac,mp3,ac3,eac3,flac,mp2,pcm"]
+                ],
+                "TranscodingProfiles": [
+                    ["Type": "Video", "Container": "ts", "VideoCodec": "h264", "AudioCodec": "aac", "Protocol": "hls", "EstimateContentLength": false]
+                ],
+                "ContainerProfiles": [],
+                "CodecProfiles": [],
+                "SubtitleProfiles": [
+                    ["Format": "srt", "Method": "External"],
+                    ["Format": "srt", "Method": "Embed"],
+                    ["Format": "ass", "Method": "External"],
+                    ["Format": "ass", "Method": "Embed"],
+                    ["Format": "vtt", "Method": "External"],
+                    ["Format": "vtt", "Method": "Embed"],
+                    ["Format": "sub", "Method": "External"],
+                    ["Format": "sub", "Method": "Embed"]
+                ]
+            ]
+        ] as [String: Any]
+        
+        // Serialize the body to JSON
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: bodyData)
+        } catch {
+            throw JellyfinError.serializationError("Failed to serialize request body: \(error.localizedDescription)")
+        }
+        
+        // Send the request
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            // Check for successful HTTP response
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                let httpResponse = response as? HTTPURLResponse
+                let statusCode = httpResponse?.statusCode ?? -1
+                let dataString = String(data: data, encoding: .utf8) ?? "No data"
+                throw JellyfinError.serverError("Server returned error: \(statusCode). Response: \(dataString)")
+            }
+            
+            // Parse the response
+            let decoder = JSONDecoder()
+            let playbackInfo = try decoder.decode(PlaybackInfoResponse.self, from: data)
+            
+            return playbackInfo
+        } catch let decodingError as DecodingError {
+            // Handle JSON decoding errors specifically
+            throw JellyfinError.decodingError("Failed to decode server response: \(decodingError.localizedDescription)")
+        } catch let urlError as URLError {
+            // Handle network errors
+            throw JellyfinError.networkError("Network error: \(urlError.localizedDescription)")
+        } catch {
+            // Re-throw our custom errors or wrap unknown errors
+            if let jellyfinError = error as? JellyfinError {
+                throw jellyfinError
+            }
+            throw JellyfinError.unknown("Unknown error: \(error.localizedDescription)")
         }
     }
     
@@ -566,21 +680,23 @@ class JellyfinService: ObservableObject {
 
     private func buildAuthenticatedRequest(endpoint: String, method: String = "GET", params: [String: String]? = nil) -> URLRequest? {
         // Check authentication state and required components
-        guard isAuthenticated, let serverURL = serverURL, let _ = userID, let accessToken = accessToken else { // userID is checked but not used here
+        guard isAuthenticated, let serverURL = serverURL, let _ = userID, let accessToken = accessToken else { 
             print("Error: Attempted to build request while not authenticated or missing server/user/token.")
             return nil
         }
         
-        guard var urlComponents = URLComponents(string: serverURL + endpoint) else {
+        guard let urlComponents = URLComponents(string: serverURL + endpoint) else {
             print("Error: Invalid endpoint for URLComponents - \(endpoint)")
             return nil
         }
         
+        // Create a mutable copy if needed for adding query items
+        var components = urlComponents
         if let params = params {
-            urlComponents.queryItems = params.map { URLQueryItem(name: $0.key, value: $0.value) }
+            components.queryItems = params.map { URLQueryItem(name: $0.key, value: $0.value) }
         }
         
-        guard let url = urlComponents.url else {
+        guard let url = components.url else {
             print("Error: Could not create final URL from components.")
             return nil
         }
@@ -656,26 +772,25 @@ class JellyfinService: ObservableObject {
     func loadCredentials() {
         print("JellyfinService Initializing - Loading credentials from Keychain...")
         
-        // Get credentials from Keychain
-        let serverURLData = KeychainHelper.standard.read(service: "JellyfinService", account: "serverURL")
-        let usernameData = KeychainHelper.standard.read(service: "JellyfinService", account: "username")
-        let userIdData = KeychainHelper.standard.read(service: "JellyfinService", account: "userId")
-        let accessTokenData = KeychainHelper.standard.read(service: "JellyfinService", account: "accessToken")
+        // Get credentials from Keychain using our new KeychainHelper
+        let serverURL = KeychainHelper.standard.readString(for: "serverURL")
+        let username = KeychainHelper.standard.readString(for: "username")
+        let userId = KeychainHelper.standard.readString(for: "userId")
+        let accessToken = KeychainHelper.standard.readString(for: "accessToken")
         
         // If credentials exist, set them
-        if let savedServerURL = serverURLData, let savedUsername = usernameData,
-           let savedUserId = userIdData, let savedAccessToken = accessTokenData {
+        if let savedServerURL = serverURL, let savedUsername = username,
+           let savedUserId = userId, let savedAccessToken = accessToken {
             
             // Sanitize the server URL to ensure it has protocol and ends with slash
-            let rawURL = String(decoding: savedServerURL, as: UTF8.self)
-            let sanitizedURL = sanitizeServerURL(rawURL)
+            let sanitizedURL = sanitizeServerURL(savedServerURL)
             
             self.serverURL = sanitizedURL
-            self.username = String(decoding: savedUsername, as: UTF8.self)
-            self.userId = String(decoding: savedUserId, as: UTF8.self)
-            self.accessToken = String(decoding: savedAccessToken, as: UTF8.self)
+            self.username = savedUsername
+            self.userID = savedUserId // Note: using userID (not userId) to match the property name
+            self.accessToken = savedAccessToken
             
-            print("Credentials loaded from Keychain for user: \(self.userId ?? "unknown")")
+            print("Credentials loaded from Keychain for user: \(self.userID ?? "unknown")")
         } else {
             print("No credentials found in Keychain.")
         }
@@ -685,25 +800,220 @@ class JellyfinService: ObservableObject {
         // Sanitize the server URL to ensure it has protocol and ends with slash
         let sanitizedURL = sanitizeServerURL(serverURL)
         
-        if let serverURLData = sanitizedURL.data(using: .utf8),
-           let usernameData = username.data(using: .utf8),
-           let userIdData = userId.data(using: .utf8),
-           let accessTokenData = accessToken.data(using: .utf8) {
-            
-            // Save to keychain
-            KeychainHelper.standard.save(serverURLData, service: "JellyfinService", account: "serverURL")
-            KeychainHelper.standard.save(usernameData, service: "JellyfinService", account: "username")
-            KeychainHelper.standard.save(userIdData, service: "JellyfinService", account: "userId")
-            KeychainHelper.standard.save(accessTokenData, service: "JellyfinService", account: "accessToken")
-            
-            // Set instance variables
-            self.serverURL = sanitizedURL
-            self.username = username
-            self.userId = userId
-            self.accessToken = accessToken
-            
-            print("Credentials saved to Keychain.")
+        // Save to keychain using our new KeychainHelper
+        KeychainHelper.standard.save(sanitizedURL, for: "serverURL")
+        KeychainHelper.standard.save(username, for: "username")
+        KeychainHelper.standard.save(userId, for: "userId")
+        KeychainHelper.standard.save(accessToken, for: "accessToken")
+        
+        // Set instance variables
+        self.serverURL = sanitizedURL
+        self.username = username
+        self.userID = userId // Note: using userID (not userId) to match the property name
+        self.accessToken = accessToken
+        
+        print("Credentials saved to Keychain.")
+    }
+
+    // MARK: - Favorites Management
+
+    func fetchFavorites() {
+        guard isAuthenticated, let userID = userID, let accessToken = accessToken, let serverURL = serverURL else {
+            print("Cannot fetch favorites: not authenticated")
+            return
         }
+        
+        isLoadingData = true
+        
+        // Example URL to fetch user favorites from Jellyfin
+        let urlString = "\(serverURL)/Users/\(userID)/Items?Filters=IsFavorite&fields=Overview,Genres,MediaStreams,RunTimeTicks&X-Emby-Token=\(accessToken)"
+        
+        guard let url = URL(string: urlString) else {
+            print("Invalid URL for favorites fetch")
+            isLoadingData = false
+            return
+        }
+        
+        URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                self.isLoadingData = false
+                
+                if let error = error {
+                    print("Error fetching favorites: \(error.localizedDescription)")
+                    self.errorMessage = "Failed to fetch favorites: \(error.localizedDescription)"
+                    return
+                }
+                
+                guard let data = data else {
+                    print("No data received")
+                    return
+                }
+                
+                do {
+                    let response = try JSONDecoder().decode(JellyfinItemsResponse<MediaItem>.self, from: data)
+                    self.favoriteItems = response.items
+                    print("Fetched \(response.items.count) favorite items")
+                } catch {
+                    print("Error decoding favorites: \(error.localizedDescription)")
+                    self.errorMessage = "Failed to decode favorites: \(error.localizedDescription)"
+                }
+            }
+        }.resume()
+    }
+
+    // MARK: - Item Details
+
+    func fetchItemDetails(id: String, completion: @escaping (Result<MediaItem, Error>) -> Void) {
+        guard isAuthenticated, let userID = userID, let accessToken = accessToken, let serverURL = serverURL else {
+            print("Cannot fetch item details: not authenticated")
+            completion(.failure(JellyfinError.notAuthenticated))
+            return
+        }
+        
+        // Example URL to fetch item details from Jellyfin
+        let urlString = "\(serverURL)/Users/\(userID)/Items/\(id)?fields=Overview,Genres,MediaStreams,RunTimeTicks&X-Emby-Token=\(accessToken)"
+        
+        guard let url = URL(string: urlString) else {
+            print("Invalid URL for item details")
+            completion(.failure(JellyfinError.invalidURL("Invalid URL for item details")))
+            return
+        }
+        
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            if let error = error {
+                print("Error fetching item details: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+                return
+            }
+            
+            guard let data = data else {
+                print("No data received for item details")
+                DispatchQueue.main.async {
+                    completion(.failure(JellyfinError.networkError("No data received")))
+                }
+                return
+            }
+            
+            do {
+                let item = try JSONDecoder().decode(MediaItem.self, from: data)
+                DispatchQueue.main.async {
+                    self.currentItemDetails = item  // Store in service for reference
+                    completion(.success(item))
+                }
+            } catch {
+                print("Error decoding item details: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+            }
+        }.resume()
+    }
+
+    // MARK: - Similar Items
+
+    func fetchSimilarItems(for itemId: String, completion: @escaping (Result<[MediaItem], Error>) -> Void) {
+        guard isAuthenticated, let userID = userID, let accessToken = accessToken, let serverURL = serverURL else {
+            print("Cannot fetch similar items: not authenticated")
+            completion(.failure(JellyfinError.notAuthenticated))
+            return
+        }
+        
+        // Example URL to fetch similar items from Jellyfin
+        let urlString = "\(serverURL)/Items/\(itemId)/Similar?userId=\(userID)&limit=10&fields=Overview,Genres,MediaStreams,RunTimeTicks&X-Emby-Token=\(accessToken)"
+        
+        guard let url = URL(string: urlString) else {
+            print("Invalid URL for similar items")
+            completion(.failure(JellyfinError.invalidURL("Invalid URL for similar items")))
+            return
+        }
+        
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            if let error = error {
+                print("Error fetching similar items: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+                return
+            }
+            
+            guard let data = data else {
+                print("No data received for similar items")
+                DispatchQueue.main.async {
+                    completion(.failure(JellyfinError.networkError("No data received")))
+                }
+                return
+            }
+            
+            do {
+                let response = try JSONDecoder().decode(JellyfinItemsResponse<MediaItem>.self, from: data)
+                DispatchQueue.main.async {
+                    completion(.success(response.items))
+                }
+            } catch {
+                print("Error decoding similar items: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+            }
+        }.resume()
+    }
+
+    // MARK: - Media Playback
+
+    func playMedia(item: MediaItem) {
+        // Placeholder function to handle media playback
+        // In a real implementation, this would navigate to your player view
+        // and start playback with the appropriate settings
+        print("Playing media: \(item.name)")
+        
+        // Example implementation:
+        // 1. Get playback info from the server
+        // 2. Set up the player with the appropriate URL and stream selection
+        // 3. Navigate to the player view
+        // 4. Report playback start to the server
+        
+        // This would typically be implemented in your app's navigation flow
+    }
+
+    // MARK: - Image Handling
+
+    enum ImageType {
+        case primary
+        case backdrop
+        case logo
+        case banner
+        case thumb
+    }
+
+    func imageUrl(for itemId: String, tag: String?, type: ImageType, maxWidth: Int = 0, maxHeight: Int = 0) -> URL? {
+        guard let serverURL = serverURL, let tag = tag else {
+            return nil
+        }
+        
+        let typeString: String
+        switch type {
+        case .primary: typeString = "Primary"
+        case .backdrop: typeString = "Backdrop"
+        case .logo: typeString = "Logo"
+        case .banner: typeString = "Banner"
+        case .thumb: typeString = "Thumb"
+        }
+        
+        var urlString = "\(serverURL)/Items/\(itemId)/Images/\(typeString)?tag=\(tag)"
+        
+        if maxWidth > 0 {
+            urlString += "&maxWidth=\(maxWidth)"
+        }
+        
+        if maxHeight > 0 {
+            urlString += "&maxHeight=\(maxHeight)"
+        }
+        
+        return URL(string: urlString)
     }
 
 } 

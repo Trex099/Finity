@@ -98,11 +98,13 @@ struct MediaPosterCard_Previews: PreviewProvider {
     // Update preview item to use the new MediaItem structure
     static let previewItem = MediaItem(
         id: "1", name: "Inception", serverId: nil, type: "Movie", 
-        overview: "A thief who steals corporate secrets through dream-sharing technology.", 
-        productionYear: 2010, communityRating: 8.8, officialRating: "PG-13", 
-        imageTags: ["Primary": "previewTag"], backdropImageTags: [], 
-        userData: nil, genres: ["Action", "Sci-Fi"], runTimeTicks: nil,
-        indexNumber: nil, parentIndexNumber: nil, seriesName: nil
+        path: nil, overview: "A thief who steals corporate secrets through dream-sharing technology.", 
+        taglines: nil, genres: ["Action", "Sci-Fi"], studios: nil,
+        productionYear: 2010, officialRating: "PG-13", communityRating: 8.8, 
+        runTimeTicks: nil, seriesName: nil, seriesId: nil,
+        seasonId: nil, parentId: nil, indexNumber: nil, parentIndexNumber: nil,
+        imageTags: ["Primary": "previewTag"], primaryImageTag: nil,
+        primaryImageAspectRatio: nil, backdropImageTags: [], userData: nil
     )
     
     static var previews: some View {

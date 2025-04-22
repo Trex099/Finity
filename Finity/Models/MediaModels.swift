@@ -1,29 +1,69 @@
 import Foundation
 
-// Represents a Jellyfin Item (BaseItemDto) - adaptable for Movies, Shows, Episodes etc.
-struct MediaItem: Identifiable, Codable, Hashable {
-    let id: String // Jellyfin's Item ID
-    let name: String // Title
-    let serverId: String? // Server ID (useful if handling multiple servers)
-    let type: String // e.g., "Movie", "Series", "Episode"
+// MARK: - Media Items
+
+// Standard Media Item structure (from Jellyfin)
+struct MediaItem: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let serverId: String?
+    let type: String?
+    let path: String?
+    
+    // Media details
     let overview: String?
+    let taglines: [String]?
+    let genres: [String]?
+    let studios: [MediaStudio]?
     let productionYear: Int?
+    let officialRating: String?
     let communityRating: Double?
-    let officialRating: String? // e.g., "PG-13"
-    let imageTags: [String: String]? // Contains keys like "Primary", value is the tag
-    let backdropImageTags: [String]? // Array of tags for backdrops
-    var userData: UserData? // Make mutable for optimistic updates
-    let genres: [String]? // List of genres
-    let runTimeTicks: Int? // Add runtime ticks
-    let indexNumber: Int? // Episode number
+    let runTimeTicks: Int64?
+    
+    // Media metadata
+    let seriesName: String?
+    let seriesId: String?
+    let seasonId: String?
+    let parentId: String?
+    let indexNumber: Int?  // Episode number or disc number
     let parentIndexNumber: Int? // Season number
-    let seriesName: String? // Name of the parent series
-    // Add other relevant fields as needed: People (cast), Studios etc.
     
-    // Conformance to Identifiable using Jellyfin's ID
-    var identifier: String { id }
+    // Image paths and properties
+    let imageTags: [String: String]?
+    let primaryImageTag: String?
+    let primaryImageAspectRatio: Double?
+    let backdropImageTags: [String]?
     
-    // Conformance to Hashable (needed for NavigationDestination)
+    // User specific data
+    let userData: UserItemData?
+    
+    // Computed properties (for convenience)
+    var imageUrl: URL? {
+        // Simplified example - construct based on id and primaryImageTag if available
+        guard let tag = primaryImageTag else { return nil }
+        return URL(string: "PLACEHOLDER_SERVER_URL/Items/\(id)/Images/Primary?tag=\(tag)")
+    }
+    
+    var backdropUrl: URL? {
+        // Simplified example - construct first backdrop if available
+        guard let tags = backdropImageTags, !tags.isEmpty else { return nil }
+        return URL(string: "PLACEHOLDER_SERVER_URL/Items/\(id)/Images/Backdrop?tag=\(tags[0])")
+    }
+    
+    var runtimeFormatted: String {
+        guard let ticks = runTimeTicks else { return "Unknown" }
+        let seconds = Double(ticks) / 10_000_000.0
+        let hours = Int(seconds / 3600)
+        let minutes = Int((seconds.truncatingRemainder(dividingBy: 3600)) / 60)
+        
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        } else {
+            return "\(minutes)m"
+        }
+    }
+    
+    // Hashable conformance
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
@@ -31,149 +71,162 @@ struct MediaItem: Identifiable, Codable, Hashable {
     static func == (lhs: MediaItem, rhs: MediaItem) -> Bool {
         lhs.id == rhs.id
     }
-
-    // CodingKeys to map JSON names (PascalCase) to Swift names (camelCase)
-    enum CodingKeys: String, CodingKey {
-        case id = "Id"
-        case name = "Name"
-        case serverId = "ServerId"
-        case type = "Type"
-        case overview = "Overview"
-        case productionYear = "ProductionYear"
-        case communityRating = "CommunityRating"
-        case officialRating = "OfficialRating"
-        case imageTags = "ImageTags"
-        case backdropImageTags = "BackdropImageTags"
-        case userData = "UserData"
-        case genres = "Genres"
-        case runTimeTicks = "RunTimeTicks"
-        case indexNumber = "IndexNumber"
-        case parentIndexNumber = "ParentIndexNumber"
-        case seriesName = "SeriesName"
-        // Map other fields if added
-    }
-    
-    // Helper to get the primary image tag
-    var primaryImageTag: String? {
-        return imageTags?["Primary"]
-    }
 }
 
-// Represents the UserData part of a Jellyfin Item
-struct UserData: Codable, Hashable {
-    let playbackPositionTicks: Int?
-    let playCount: Int?
-    var isFavorite: Bool? // Make mutable for optimistic updates
-    let played: Bool?
+// Minimal studio information
+struct MediaStudio: Codable, Hashable {
+    let name: String
+    let id: String
+}
+
+// User-specific data for items (like watched status)
+struct UserItemData: Codable, Hashable {
     let playedPercentage: Double?
-
-    enum CodingKeys: String, CodingKey {
-        case playbackPositionTicks = "PlaybackPositionTicks"
-        case playCount = "PlayCount"
-        case isFavorite = "IsFavorite"
-        case played = "Played"
-        case playedPercentage = "PlayedPercentage"
+    let playbackPositionTicks: Int64?
+    let playCount: Int?
+    let isFavorite: Bool
+    let played: Bool
+    
+    // Constructor with defaults for convenience
+    init(playbackPositionTicks: Int64? = nil, playCount: Int? = nil, isFavorite: Bool = false, played: Bool = false, playedPercentage: Double? = nil) {
+        self.playbackPositionTicks = playbackPositionTicks
+        self.playCount = playCount
+        self.isFavorite = isFavorite
+        self.played = played
+        self.playedPercentage = playedPercentage
     }
     
-    // Helper to check if item is resumable (has position and not fully played)
-    var isResumable: Bool {
-        (playbackPositionTicks ?? 0) > 0 && !(played ?? false)
+    var formattedProgress: String {
+        guard let progress = playedPercentage else { return "" }
+        return "\(Int(progress))%"
+    }
+    
+    var progressValueForBar: Float {
+        guard let progress = playedPercentage else { return 0 }
+        return Float(progress) / 100.0
     }
 }
 
-// Generic response structure for API calls returning lists of items
+// MARK: - Response Structures
+
+// Container for Multiple Items
 struct JellyfinItemsResponse<T: Codable>: Codable {
     let items: [T]
     let totalRecordCount: Int
+}
+
+// MARK: - Playback Structures
+
+// Response from PlaybackInfo endpoint
+struct PlaybackInfoResponse: Codable {
+    let mediaSources: [MediaSourceInfo]
+    // Add other fields as needed from actual API response
+}
+
+// Detailed info about a media source
+struct MediaSourceInfo: Codable {
+    let id: String
+    let name: String?
+    let path: String?
+    let protocolName: String?
+    let encoderProtocol: String?
+    let encoderPath: String?
+    let type: String?
+    let container: String?
+    let size: Int64?
+    let isRemote: Bool?
+    let isInfiniteStream: Bool?
+    let runTimeTicks: Int64?
     
-    enum CodingKeys: String, CodingKey {
-        case items = "Items"
-        case totalRecordCount = "TotalRecordCount"
-    }
+    // Video/Audio/Subtitle info
+    let mediaStreams: [MediaStreamInfo]?
+    
+    // Transcoding flags
+    let supportsDirectPlay: Bool?
+    let supportsDirectStream: Bool?
+    let supportsTranscoding: Bool?
+    let requiresTranscoding: Bool?
+    let requiresOpening: Bool?
+    
+    // Other useful fields
+    let bitrate: Int?
+    let defaultAudioStreamIndex: Int?
+    let defaultSubtitleStreamIndex: Int?
 }
 
-// Row of content for horizontal scrolling
-struct MediaRow: Identifiable {
-    let id = UUID()
-    let title: String
-    let items: [MediaItem]
+// Information about specific media streams (video/audio/subtitle tracks)
+struct MediaStreamInfo: Codable {
+    let codec: String?
+    let language: String?
+    let displayTitle: String?
+    let isDefault: Bool?
+    let type: String? // "Video", "Audio", "Subtitle"
+    let index: Int?
+    let channels: Int?
+    let sampleRate: Int?
+    let bitRate: Int?
+    let width: Int?
+    let height: Int?
+    let aspectRatio: String?
+    let averageFrameRate: Float?
+    let realFrameRate: Float?
+    let profile: String?
+    let level: Int?
+    let pixelFormat: String?
+    let deliveryMethod: String?
+    let deliveryUrl: String?
+    let isExternal: Bool?
+    let isTextSubtitleStream: Bool?
+    let supportsExternalStream: Bool?
+    
+    // Probably more fields available based on media type
 }
 
-// MARK: - Playback Info Structures (from /PlaybackInfo endpoint)
+// MARK: - Device & Playback Reporting
 
-// Payload to send TO the server
-struct DeviceInfo: Codable {
+// Device Info structure
+struct DeviceInfo: Encodable {
     let deviceName: String
     let deviceId: String
     let appName: String
     let appVersion: String
-    // Add more fields as needed, e.g., SupportedCodecs, MaxStreamingBitrate
-    // For now, keep it simple
+}
+
+// Jellyfin Error Types
+enum JellyfinError: Error, LocalizedError {
+    case notAuthenticated
+    case invalidURL(String)
+    case networkError(String)
+    case serverError(String)
+    case decodingError(String)
+    case serializationError(String)
+    case unknown(String)
     
-    enum CodingKeys: String, CodingKey {
-        case deviceName = "DeviceName"
-        case deviceId = "DeviceId"
-        case appName = "AppName"
-        case appVersion = "AppVersion"
+    var errorDescription: String? {
+        switch self {
+        case .notAuthenticated:
+            return "Not authenticated. Please log in first."
+        case .invalidURL(let detail):
+            return "Invalid URL: \(detail)"
+        case .networkError(let detail):
+            return "Network error: \(detail)"
+        case .serverError(let detail):
+            return "Server error: \(detail)"
+        case .decodingError(let detail):
+            return "Failed to decode response: \(detail)"
+        case .serializationError(let detail):
+            return "Failed to serialize request: \(detail)"
+        case .unknown(let detail):
+            return "Unknown error: \(detail)"
+        }
     }
 }
 
-// Response FROM the server
-struct PlaybackInfoResponse: Codable {
-    let mediaSources: [MediaSourceInfo]
-    let playSessionId: String?
+// MARK: - UI Models
 
-    enum CodingKeys: String, CodingKey {
-        case mediaSources = "MediaSources"
-        case playSessionId = "PlaySessionId"
-    }
-}
-
-struct MediaSourceInfo: Codable, Identifiable {
-    let `protocol`: String? // e.g., "Http", "Hls"
-    let id: String? // Often the item ID, but can differ
-    let path: String? // The URL path (can be relative or absolute)
-    let type: String? // e.g., "Default", "Grouping"
-    let container: String? // e.g., "mkv", "mp4", "ts"
-    let size: Int64?
-    let name: String?
-    
-    let isRemote: Bool?
-    let runTimeTicks: Int64?
-    let supportsDirectPlay: Bool?
-    let supportsDirectStream: Bool?
-    let supportsTranscoding: Bool?
-    let isInfiniteStream: Bool?
-    let requiresOpening: Bool?
-    let requiresClosing: Bool?
-    let videoType: String? // e.g., "h264", "hevc"
-    let audioStreamIndex: Int?
-    let videoStreamIndex: Int?
-    let transcodeReasons: [String]? // Why transcoding might be needed
-    
-    // Simplified mapping for common fields
-    enum CodingKeys: String, CodingKey {
-        case `protocol` = "Protocol"
-        case id = "Id"
-        case path = "Path"
-        case type = "Type"
-        case container = "Container"
-        case size = "Size"
-        case name = "Name"
-        case isRemote = "IsRemote"
-        case runTimeTicks = "RunTimeTicks"
-        case supportsDirectPlay = "SupportsDirectPlay"
-        case supportsDirectStream = "SupportsDirectStream"
-        case supportsTranscoding = "SupportsTranscoding"
-        case isInfiniteStream = "IsInfiniteStream"
-        case requiresOpening = "RequiresOpening"
-        case requiresClosing = "RequiresClosing"
-        case videoType = "VideoType" // Correct based on typical Jellyfin API
-        case audioStreamIndex = "AudioStreamIndex"
-        case videoStreamIndex = "VideoStreamIndex"
-        case transcodeReasons = "TranscodeReasons"
-    }
-    
-    // Add Identifiable conformance if needed (using 'id' or generating one)
-     var identifiableId: String { id ?? UUID().uuidString }
+// MediaRow model for horizontal media rows in the UI
+struct MediaRow: Identifiable {
+    var id = UUID()
+    let title: String
+    let items: [MediaItem]
 } 

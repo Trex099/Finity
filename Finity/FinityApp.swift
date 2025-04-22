@@ -6,26 +6,12 @@
 //
 
 import SwiftUI
-import FirebaseCore
-import FirebaseFirestore
-import FirebaseFirestoreCombineSwift
-
-// Define the AppDelegate class
-class AppDelegate: NSObject, UIApplicationDelegate {
-  func application(_ application: UIApplication,
-                   didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
-    FirebaseApp.configure()
-    return true
-  }
-}
 
 @main
 struct FinityApp: App {
-    // register app delegate for Firebase setup
-    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
-
-    // Create a single instance of JellyfinService for the entire app lifecycle
-    @StateObject private var jellyfinService = JellyfinService()
+    @StateObject var authManager = AuthManager()
+    @StateObject var serverDiscoveryService = ServerDiscoveryService()
+    @StateObject var jellyfinService = JellyfinService()
 
     var body: some Scene {
         WindowGroup {
